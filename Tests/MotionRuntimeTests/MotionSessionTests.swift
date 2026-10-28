@@ -415,3 +415,23 @@ func initialPermissionWaitDoesNotRestartTheStreamAndAuthorizationResumesRecovery
     #expect(source.isRunning)
     await session.shutdown()
 }
+
+
+@Test @MainActor
+func automaticCalibrationCannotUseANewerUnverifiedOrStaleSample() async {
+    let source = FakeMotionSource()
+    let session = MotionSession(source: source, timing: patientTiming)
+    await session.start()
+    source.send(.sample(sample(10)))
+    #expect(await eventually { await session.snapshot().latest?.raw.timestamp == 10 })
+    source.send(.sample(sample(10.02, yaw: 0.4)))
+    #expect(await eventually { await session.snapshot().latest?.raw.timestamp == 10.02 })
+    #expect(await session.calibrate(expectedTimestamp: 10) == false)
+    #expect(await session.currentCalibrationID() == nil)
+    #expect(await session.calibrate(expectedTimestamp: 10.02))
+    let reference = await session.currentCalibrationID()
+    try? await Task.sleep(for: .milliseconds(350))
+    #expect(await session.calibrate(expectedTimestamp: 10.02) == false)
+    #expect(await session.currentCalibrationID() == reference)
+    await session.shutdown()
+}

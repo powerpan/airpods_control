@@ -4,7 +4,7 @@
 
 ## 構建與運行
 
-- Apple Silicon Mac，macOS 14 或更新版本。耳機 API 的最低版本是 macOS 14；工程當前明確構建 arm64。
+- Apple Silicon Mac，macOS 14 或更新版本。姿態採集從 macOS 14 起可用，離座偵測需要 macOS 15 或更新版本及相容耳機；舊系統保留轉頭遮擋。工程當前明確構建 arm64。
 - Xcode 26 或更新版本（需要原生玻璃效果 API 的 SDK，舊版 macOS 在運行時使用材質回退）。最低系統版本尚未實機驗證。
 - 打開 `AirPodsMotionLab.xcodeproj`，選擇 **AirPodsMotionLab → My Mac**，按 ⌘R。
 - 使用本地 ad-hoc 簽名，不需要開發者賬號。未啓用 App Sandbox，不申請網絡、輔助功能、藍牙掃描或 Apple Events 權限。
@@ -29,7 +29,11 @@
 2. 正常看向工作屏幕，選擇 **校準屏幕中立方向**，保持正視片刻，等狀態顯示“正在留意頭部朝向”。
 3. 默認左右轉頭偏離至少 35°、連續 0.6 秒後遮擋；回到 20°以內並穩定 0.5 秒後恢復。觸發/恢復角度、持續時間可在 **功能設置 → 隱私保護** 調整。
 
+**離座偵測** 使用官方耳機活動識別。坐在書桌前的主動校準同時確認書桌基準；高置信度步行或跑步證據持續約 2.5 秒後，遮擋會保持到手動解除。原本因轉頭遮擋時只升級保持狀態，不重建覆蓋窗口。離座後停止行走、回到中立朝向或長時間靜止，都不會自動解除。API、權限或設備不支持時，設置中顯示原因並繼續原有轉頭邏輯。詳見 [離座偵測與保持遮擋](docs/departure-detection.md)。
+
 選擇 **立即遮擋所有屏幕** 可以手動進入，不需要耳機數據。手動遮擋只會手動解除；回正頭部不會替你揭開。每屏都有 **解除遮擋** 按鈕，覆蓋窗口收到鍵盤輸入時也可按 **Esc** 或 **⇧⌘P**。這些是應用內解除方式，不是系統級全局快捷鍵。手動解除後，自動檢測要等回到中立並穩定後才重新就緒，避免剛退出就再次遮擋。
+
+解除離座遮擋視為主動確認返回；應用等待穩定姿態重新校準並冷卻後恢復判定。數據不足時會提示等待或使用現有手動校準入口。應用不會因在其他位置靜止而自行確認書桌基準。
 
 已遮擋時發生斷流、斷連或校準變化，會保留遮擋並要求手動解除；重連不會直接暴露內容。關閉自動檢測也不會自行揭開已有遮擋。短暫異常會清除判定中的保持時間，不會把中斷前後樣本拼成一個完整動作。
 
@@ -51,7 +55,7 @@
 
 可以隨時暫停、繼續、跳過或結束。跳過單獨計數，不計為完成。斷流會暫停動作判定，恢復後按界面提示重新校準；保持時間不會跨過丟失的數據。本次“活動用時”統計有有效採樣的活動時間，不包括暫停和斷流，不是健康評分。
 
-活動期間暫停隱私保護的自動姿態觸發，手動遮擋仍可用並會暫停活動。完成、提前結束或關閉活動窗口後，恢復原來的自動隱私檢測設置，但清除活動參考：**回到工作姿態後重新校準屏幕中立方向**，再恢復自動判斷。兩個功能沒有各自創建新的耳機採集實例。
+活動期間暫停隱私保護的自動姿態觸發與離座判定，手動遮擋仍可用並會暫停活動。完成、提前結束或關閉活動窗口後，恢復原來的自動隱私檢測設置，但清除活動參考：**回到工作姿態後重新校準屏幕中立方向**，再恢復自動判斷。兩個功能沒有各自創建新的耳機採集實例。
 
 只在舒適範圍內緩慢活動，疼痛、眩暈或不適時停止。該功能是輕緩活動引導，不用於醫療診斷、治療或康復。模擬模式在窗口中明確標註，模擬完成結果不代表真實動作。
 
@@ -97,16 +101,18 @@ HeadphoneMotionSource / SimulatedMotionSource
     → MotionSession actor → MotionProcessor
         → 每位訂閱者獨立的有界 AsyncStream<ProcessedMotion>
             → InteractionSession actor
-                → PrivacyMachine / NeckExerciseMachine
+                → PrivacyMachine / DepartureMachine / NeckExerciseMachine
                 → InteractionStore @MainActor（約 10 Hz）
                     → 多屏 AppKit 覆蓋窗口 / SwiftUI 活動與設置
         → SessionSnapshot → MotionStore @MainActor → SwiftUI（約 10 Hz）
+HeadphoneActivitySource（macOS 15+）
+    → 有界 AsyncStream<ActivitySourceEvent> → 同一個 InteractionSession
 ```
 
 - `Sources/MotionCore`：純 Swift 數據模型、四元數、校準、時間相關平滑和頻率估計。姿態用最短路徑 SLERP，向量用指數平滑；時間常數默認 80 ms，可關閉。濾波不會覆蓋原始數據。
 - `Sources/MotionRuntime`：平台適配、模擬源、狀態機與分發。Core Motion 的對象在主 actor 管理；回調在專用串行 `OperationQueue` 上立即複製成 `Sendable` 值，處理由獨立 actor 串行完成。只有回調橋接器用小範圍鎖。
-- `Sources/InteractionCore`：可獨立測試的隱私狀態機、頸部活動狀態機和參數邊界，不持有 UI 或傳感器對象。
-- `InteractionSession`：按實際接收樣本運行兩個規則，協調活動期間暫停自動隱私檢測、校準標識和斷流處理。沿用唯一的 `MotionSession`；原調試窗口的顯示暫停不影響功能判斷。
+- `Sources/InteractionCore`：可獨立測試的隱私狀態機、離座證據規則、頸部活動狀態機和參數邊界，不持有 UI 或傳感器對象。
+- `InteractionSession`：按實際接收樣本運行姿態規則，另接收低頻活動類型變更並計算離座保持時間；協調頸部活動期間暫停自動隱私檢測、校準標識和斷流處理。沿用唯一的 `MotionSession`；原調試窗口的顯示暫停不影響功能判斷。
 - `AirPodsMotionLab/Privacy`：擁有 AppKit 覆蓋窗口、顯示器/Space 觀察器及解除操作；不決定動作是否完成。
 - `AirPodsMotionLab/Exercise` 與 `Settings`：原生 SceneKit 3D 頭部示範、幅度與保持進度、舒適範圍和參數設置。模型在本機程序化構建，無外部模型資產；視覺動畫不參與動作判定。
 - `AirPodsMotionLab/Stores` 與 `Views`：約 10 Hz 取快照；圖表最多 330 點，表示顯示採樣而非完整傳感器歷史。暫停只影響顯示，錯誤與連接狀態仍可見。
@@ -128,11 +134,12 @@ HeadphoneMotionSource / SimulatedMotionSource
 新增功能從這些接口進入：
 
 - 識別算法：獨立模塊訂閱 `await session.samples()`；使用原始時間戳、四元數與向量，不消費 UI 的 10 Hz 快照。遇到時間斷點、掉樣或校準狀態變化時重置算法內部狀態。
-- 新數據源：實現 `MotionSource`，用 `MotionSession(source:)` 注入，便於回放與測試。
+- 新數據源：姿態實現 `MotionSource`，用 `MotionSession(source:)` 注入；活動實現 `ActivitySource`，注入 `InteractionSession`，便於回放與測試。
 - 現有交互：先在 `InteractionCore` 修改規則並測試，再由 `InteractionSession` 協調，最後更新 UI；不要從視圖另開傳感器，也不要把 UI 動畫進度當作完成依據。當前只包含隱私遮擋和頸部活動。
 
 ## 官方依據
 
+- [CMHeadphoneActivityManager：活動識別](https://developer.apple.com/documentation/coremotion/cmheadphoneactivitymanager)、[耳機活動資料範例](https://developer.apple.com/documentation/coremotion/getting-motion-activity-data-from-headphones)
 - [CMHeadphoneMotionManager：平台、權限、耳機坐標圖](https://developer.apple.com/documentation/coremotion/cmheadphonemotionmanager)
 - [CMDeviceMotion](https://developer.apple.com/documentation/coremotion/cmdevicemotion)、[rotationRate](https://developer.apple.com/documentation/coremotion/cmdevicemotion/rotationrate)、[gravity](https://developer.apple.com/documentation/coremotion/cmdevicemotion/gravity)
 - [CMLogItem.timestamp](https://developer.apple.com/documentation/coremotion/cmlogitem/timestamp)

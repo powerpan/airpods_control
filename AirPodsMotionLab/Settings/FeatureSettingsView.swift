@@ -8,7 +8,7 @@ struct FeatureSettingsView: View {
     var body: some View {
         TabView {
             privacySettings
-                .tabItem { Label("隐私保护", systemImage: "eye.slash") }
+                .tabItem { Label("隱私保護", systemImage: "eye.slash") }
             exerciseSettings
                 .tabItem { Label("颈部活动", systemImage: "figure.mind.and.body") }
         }
@@ -19,43 +19,59 @@ struct FeatureSettingsView: View {
     private var privacySettings: some View {
         Form {
             Section {
-                Toggle("自动隐私保护", isOn: Binding(
+                Toggle("自動隱私保護", isOn: Binding(
                     get: { store.privacyEnabled },
                     set: { store.setPrivacyEnabled($0) }
                 ))
                 Text(store.snapshot.privacy.status)
                     .font(.caption).foregroundStyle(.secondary)
-                Button("将当前正视方向设为中立", action: store.calibrateNeutral)
+                Button("將目前正視方向設為中立", action: store.calibrateNeutral)
                     .disabled(!store.snapshot.sensorReady || store.snapshot.privacy.isShielded || store.snapshot.automaticSuspended)
             } header: {
-                Text("面向屏幕时校准")
+                Text("坐在書桌前、面向屏幕時校準")
             } footer: {
-                Text("自动检测使用校准后的相对姿态。颈部活动期间暂停自动触发，结束后需要重新校准。")
+                Text("校準同時確認書桌基準。頸部活動期間暫停轉頭與離座判定，結束後需要重新校準。")
             }
 
-            Section("离开屏幕方向") {
-                SettingSlider(label: "触发角度", value: privacyBinding(\.triggerAngle), range: 20...75, step: 1, unit: "°")
-                SettingSlider(label: "持续时间", value: privacyBinding(\.triggerDelay), range: 0.2...3, step: 0.1, unit: "秒", fractionDigits: 1)
+            Section("離座偵測") {
+                Toggle("持續行走後保持遮擋", isOn: Binding(
+                    get: { store.privacySettings.departureDetectionEnabled },
+                    set: { enabled in
+                        var settings = store.privacySettings
+                        settings.departureDetectionEnabled = enabled
+                        store.updatePrivacySettings(settings)
+                    }
+                ))
+                Text(store.snapshot.departureStatus)
+                    .font(.caption).foregroundStyle(.secondary)
+                    .accessibilityIdentifier("privacy-departure-status")
+                Text("可靠步行或跑步證據持續約 2.5 秒後，遮擋會保持到手動解除；回正或靜止不會解除。需要 macOS 15 及相容耳機，無法使用時保留原有轉頭遮擋。")
+                    .font(.caption).foregroundStyle(.secondary)
+            }
+
+            Section("離開屏幕方向") {
+                SettingSlider(label: "觸發角度", value: privacyBinding(\.triggerAngle), range: 20...75, step: 1, unit: "°")
+                SettingSlider(label: "持續時間", value: privacyBinding(\.triggerDelay), range: 0.2...3, step: 0.1, unit: "秒", fractionDigits: 1)
             }
 
             Section("回到中立方向") {
-                SettingSlider(label: "恢复范围", value: privacyBinding(\.returnAngle), range: 5...(store.privacySettings.triggerAngle - 5), step: 1, unit: "°")
-                SettingSlider(label: "稳定时间", value: privacyBinding(\.returnDelay), range: 0.3...3, step: 0.1, unit: "秒", fractionDigits: 1)
-                Text("恢复角度始终小于触发角度，避免阈值附近反复遮挡。")
+                SettingSlider(label: "恢復範圍", value: privacyBinding(\.returnAngle), range: 5...(store.privacySettings.triggerAngle - 5), step: 1, unit: "°")
+                SettingSlider(label: "穩定時間", value: privacyBinding(\.returnDelay), range: 0.3...3, step: 0.1, unit: "秒", fractionDigits: 1)
+                Text("只適用於普通轉頭遮擋。恢復角度始終小於觸發角度，避免閾值附近反覆遮擋。")
                     .font(.caption).foregroundStyle(.secondary)
             }
 
             Section {
                 HStack {
-                    Button(store.snapshot.privacy.isShielded ? "解除遮挡" : "立即遮挡") {
+                    Button(store.snapshot.privacy.isShielded ? "解除遮擋" : "立即遮擋") {
                         if store.snapshot.privacy.isShielded { store.hideShield() }
                         else { store.showShield() }
                     }
                     Spacer()
-                    Text("遮挡时可按 Esc 解除")
+                    Text("遮擋窗口收到按鍵時可按 Esc 解除")
                         .font(.caption).foregroundStyle(.secondary)
                 }
-                Text("这是视觉遮挡，不是系统锁屏。耳机断连时保留已有遮挡；遮挡界面的解除按钮始终可用。系统安全窗口及某些 Spaces 场景可能不被覆盖。")
+                Text("這是視覺遮擋，不是系統鎖屏。耳機斷連時保留已有遮擋；遮擋界面的解除按鈕始終可用。系統安全窗口及某些 Spaces 場景可能不被覆蓋。")
                     .font(.caption).foregroundStyle(.secondary)
             }
         }

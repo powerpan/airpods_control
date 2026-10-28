@@ -113,7 +113,14 @@ public actor MotionSession {
     }
 
     @discardableResult
-    public func calibrate() -> Bool {
+    public func calibrate(expectedTimestamp: TimeInterval? = nil) -> Bool {
+        // 自動回桌校準必須原子地使用已確認穩定的那一幀，不能套用稍後到達的姿態。
+        if let expectedTimestamp {
+            guard state.latest?.raw.timestamp == expectedTimestamp,
+                  let receipt = state.lastReceivedUptime else { return false }
+            let age = ProcessInfo.processInfo.systemUptime - receipt
+            guard age >= 0, age <= 0.3 else { return false }
+        }
         guard state.isRequested, state.phase == .streaming,
               let received = state.lastReceivedUptime,
               ProcessInfo.processInfo.systemUptime - received <= timing.interruptionTimeout,

@@ -46,7 +46,7 @@ private final class InteractionFixture {
         self.source = source
         let motion = MotionSession(source: source, timing: SessionTiming(interruptionTimeout: 10, retryInterval: 10, watchdogInterval: 0.02))
         self.motion = motion
-        interactions = InteractionSession(motion: motion)
+        interactions = InteractionSession(motion: motion, activitySource: UnavailableActivitySource(reason: "此測試只驗證姿態資料流。"))
     }
 
     func activate(privacy: Bool = true) async {

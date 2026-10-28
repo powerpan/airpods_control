@@ -13,13 +13,16 @@ struct FeatureMenu: View {
             Text("实时数据 \(rate, specifier: "%.1f") Hz")
         }
         Divider()
-        Toggle("自动隐私保护", isOn: Binding(get: { features.privacyEnabled }, set: features.setPrivacyEnabled))
+        Toggle("自動隱私保護", isOn: Binding(get: { features.privacyEnabled }, set: features.setPrivacyEnabled))
         Text(features.snapshot.privacy.status)
-        Button(features.snapshot.privacy.isShielded ? "解除隐私遮挡" : "立即遮挡所有屏幕") {
+        if features.privacyEnabled, features.privacySettings.departureDetectionEnabled {
+            Text(features.snapshot.departureStatus)
+        }
+        Button(features.snapshot.privacy.isShielded ? "解除隱私遮擋" : "立即遮擋所有屏幕") {
             if features.snapshot.privacy.isShielded { features.hideShield() } else { features.showShield() }
         }
         .keyboardShortcut("p", modifiers: [.command, .control])
-        Button("校准屏幕中立方向", action: features.calibrateNeutral)
+        Button("校準屏幕中立方向", action: features.calibrateNeutral)
             .disabled(!features.snapshot.sensorReady || features.snapshot.privacy.isShielded || features.snapshot.exercise.isActive)
         Divider()
         Button(features.snapshot.exercise.isActive ? "打开颈部活动" : "开始颈部活动") {
@@ -28,7 +31,7 @@ struct FeatureMenu: View {
             NSApp.activate(ignoringOtherApps: true)
         }
         .disabled(features.snapshot.privacy.isShielded)
-        if features.snapshot.automaticSuspended { Text("活动期间，隐私自动触发已暂停") }
+        if features.snapshot.automaticSuspended { Text("活動期間，轉頭與離座判定已暫停") }
         Divider()
         Button("运动数据调试") {
             openWindow(id: "motion-lab")

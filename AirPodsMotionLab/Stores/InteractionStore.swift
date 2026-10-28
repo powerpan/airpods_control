@@ -42,7 +42,7 @@ final class InteractionStore {
             forName: NSWorkspace.willSleepNotification, object: nil, queue: .main
         ) { [weak self] _ in
             Task { @MainActor in
-                self?.perform { await $0.invalidateSensor(reason: "系统进入睡眠，遮挡保留；唤醒后重新校准。") }
+                self?.perform { await $0.invalidateSensor(reason: "系統進入睡眠，遮擋保留；喚醒後重新校準。") }
             }
         }
         let session = session

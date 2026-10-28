@@ -159,3 +159,85 @@ private func shielded() -> PrivacyMachine {
     #expect(settings.triggerDelay == 0.2)
     #expect(settings.returnDelay == 0.5)
 }
+
+@Test func departureCanShieldAtDeskOrUpgradeTemporaryShieldAndNeverAutoReveal() {
+    for initial in [armed(), shielded()] {
+        var machine = initial
+        machine.confirmDeparture()
+        #expect(machine.isShielded)
+        #expect(machine.isDepartureLatched)
+        #expect(machine.requiresManualReveal)
+        #expect(machine.phase == .departureHeld)
+        feed(&machine, from: 2, through: 5)
+        #expect(machine.isShielded)
+        #expect(machine.phase == .departureHeld)
+    }
+}
+
+@Test func departureLatchSurvivesEveryNonRevealControlAndInvalidation() {
+    var machine = armed()
+    machine.confirmDeparture()
+    let reason = machine.status
+    machine.invalidatePose(reason: "資料中斷")
+    machine.resetReference()
+    machine.process(pose(2, reference: UUID()))
+    machine.process(pose(.nan))
+    machine.setAutomaticEnabled(false)
+    machine.setSuspended(true)
+    machine.updateSettings(PrivacySettings(departureDetectionEnabled: false))
+    machine.manualShield()
+    #expect(machine.isShielded)
+    #expect(machine.isDepartureLatched)
+    #expect(machine.requiresManualReveal)
+    #expect(machine.phase == .departureHeld)
+    #expect(machine.status == reason)
+    machine.manualReveal()
+    #expect(!machine.isShielded)
+    #expect(!machine.isDepartureLatched)
+}
+
+@Test func manuallyRevealedDepartureWaitsForNeutralBeforeOrdinaryTurnDetection() {
+    var machine = armed()
+    machine.confirmDeparture()
+    machine.manualReveal()
+    feed(&machine, from: 2, through: 3, yaw: 40)
+    #expect(!machine.isShielded)
+    #expect(machine.phase == .waitingForNeutral)
+    machine.process(pose(3.1, yaw: 25))
+    feed(&machine, from: 3.2, through: 3.8, yaw: 10)
+    #expect(machine.phase == .watching)
+    machine.process(pose(3.9, yaw: 25))
+    feed(&machine, from: 4, through: 4.6, yaw: 40)
+    #expect(machine.isShielded)
+    #expect(!machine.isDepartureLatched)
+    machine.process(pose(4.7, yaw: 25))
+    feed(&machine, from: 4.8, through: 5.4, yaw: 10)
+    #expect(!machine.isShielded)
+}
+
+@Test func disabledOrExerciseSuspendedDetectionCannotLatchDeparture() {
+    var disabled = PrivacyMachine()
+    disabled.confirmDeparture()
+    #expect(!disabled.isShielded)
+    var exercise = armed()
+    exercise.setSuspended(true)
+    exercise.confirmDeparture()
+    #expect(!exercise.isShielded)
+    var optedOut = armed()
+    optedOut.updateSettings(PrivacySettings(departureDetectionEnabled: false))
+    optedOut.confirmDeparture()
+    #expect(!optedOut.isShielded)
+}
+
+@Test func oldPrivacyPreferencesKeepExistingValuesAndDefaultDepartureEnabled() throws {
+    let old = Data(#"{"triggerAngle":42,"returnAngle":18,"triggerDelay":0.8,"returnDelay":0.7}"#.utf8)
+    let decoded = try JSONDecoder().decode(PrivacySettings.self, from: old)
+    #expect(decoded.triggerAngle == 42)
+    #expect(decoded.returnAngle == 18)
+    #expect(decoded.triggerDelay == 0.8)
+    #expect(decoded.returnDelay == 0.7)
+    #expect(decoded.departureDetectionEnabled)
+    let off = PrivacySettings(departureDetectionEnabled: false)
+    #expect(try JSONDecoder().decode(PrivacySettings.self, from: JSONEncoder().encode(off)) == off)
+    #expect(!off.sanitized().departureDetectionEnabled)
+}

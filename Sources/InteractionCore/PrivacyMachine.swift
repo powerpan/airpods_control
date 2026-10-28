@@ -5,13 +5,29 @@ public struct PrivacySettings: Codable, Sendable, Equatable {
     public var returnAngle: Double
     public var triggerDelay: TimeInterval
     public var returnDelay: TimeInterval
+    public var departureDetectionEnabled: Bool
 
     public init(triggerAngle: Double = 35, returnAngle: Double = 20,
-                triggerDelay: TimeInterval = 0.6, returnDelay: TimeInterval = 0.5) {
+                triggerDelay: TimeInterval = 0.6, returnDelay: TimeInterval = 0.5,
+                departureDetectionEnabled: Bool = true) {
         self.triggerAngle = triggerAngle
         self.returnAngle = returnAngle
         self.triggerDelay = triggerDelay
         self.returnDelay = returnDelay
+        self.departureDetectionEnabled = departureDetectionEnabled
+    }
+
+    private enum CodingKeys: String, CodingKey {
+        case triggerAngle, returnAngle, triggerDelay, returnDelay, departureDetectionEnabled
+    }
+
+    public init(from decoder: any Decoder) throws {
+        let values = try decoder.container(keyedBy: CodingKeys.self)
+        self.init(triggerAngle: try values.decodeIfPresent(Double.self, forKey: .triggerAngle) ?? 35,
+                  returnAngle: try values.decodeIfPresent(Double.self, forKey: .returnAngle) ?? 20,
+                  triggerDelay: try values.decodeIfPresent(Double.self, forKey: .triggerDelay) ?? 0.6,
+                  returnDelay: try values.decodeIfPresent(Double.self, forKey: .returnDelay) ?? 0.5,
+                  departureDetectionEnabled: try values.decodeIfPresent(Bool.self, forKey: .departureDetectionEnabled) ?? true)
     }
 
     public func sanitized() -> Self {
@@ -19,12 +35,13 @@ public struct PrivacySettings: Codable, Sendable, Equatable {
         return Self(triggerAngle: trigger,
                     returnAngle: bounded(returnAngle, 5...(trigger - 5), fallback: min(20, trigger - 5)),
                     triggerDelay: bounded(triggerDelay, 0.2...3, fallback: 0.6),
-                    returnDelay: bounded(returnDelay, 0.3...3, fallback: 0.5))
+                    returnDelay: bounded(returnDelay, 0.3...3, fallback: 0.5),
+                    departureDetectionEnabled: departureDetectionEnabled)
     }
 }
 
 public enum PrivacyPhase: String, Sendable, Equatable {
-    case disabled, needsCalibration, watching, turningAway, shielded, returning, suspended, waitingForNeutral
+    case disabled, needsCalibration, watching, turningAway, shielded, returning, suspended, waitingForNeutral, departureHeld
 }
 
 /// A visual privacy policy. Loss of evidence can never reveal an existing shield.
@@ -34,9 +51,10 @@ public struct PrivacyMachine: Sendable, Equatable {
     public private(set) var isSuspended = false
     public private(set) var isShielded = false
     public private(set) var requiresManualReveal = false
+    public private(set) var isDepartureLatched = false
     public private(set) var phase: PrivacyPhase = .disabled
     public private(set) var progress = 0.0
-    public private(set) var status = "自动隐私保护已关闭"
+    public private(set) var status = "自動隱私保護已關閉"
 
     private var continuity = PoseContinuity()
     private var candidateStarted: TimeInterval?
@@ -72,14 +90,25 @@ public struct PrivacyMachine: Sendable, Equatable {
     }
 
     public mutating func manualShield() {
+        guard !isDepartureLatched else { refreshInactiveStatus(); return }
         isShielded = true
         requiresManualReveal = true
         clearCandidate()
         phase = .shielded
-        status = "手动隐私遮挡；请手动解除"
+        status = "手動隱私遮擋；請手動解除"
+    }
+
+    public mutating func confirmDeparture() {
+        guard automaticEnabled, settings.departureDetectionEnabled, !isSuspended else { return }
+        isDepartureLatched = true
+        isShielded = true
+        requiresManualReveal = true
+        clearCandidate()
+        refreshInactiveStatus()
     }
 
     public mutating func manualReveal() {
+        isDepartureLatched = false
         isShielded = false
         requiresManualReveal = false
         needsNeutral = true
@@ -87,28 +116,32 @@ public struct PrivacyMachine: Sendable, Equatable {
         refreshInactiveStatus()
     }
 
-    public mutating func invalidatePose(reason: String = "运动数据中断") {
+    public mutating func invalidatePose(reason: String = "運動數據中斷") {
         continuity.reset()
         hasReference = false
         needsNeutral = true
         clearCandidate()
-        if isShielded {
+        if isDepartureLatched {
+            refreshInactiveStatus()
+        } else if isShielded {
             requiresManualReveal = true
             phase = .shielded
-            status = "\(reason)；遮挡保持，请手动解除"
+            status = "\(reason)；遮擋保持，請手動解除"
         } else {
             refreshInactiveStatus()
-            if automaticEnabled && !isSuspended { status = "\(reason)；等待有效校准姿态" }
+            if automaticEnabled && !isSuspended { status = "\(reason)；等待有效校準姿態" }
         }
     }
 
     public mutating func resetReference() {
-        invalidatePose(reason: "参考姿态已改变")
+        invalidatePose(reason: "參考姿態已改變")
     }
 
     public mutating func process(_ pose: InteractionPose) {
+        // 離座鎖只接受明確手動解除；新姿態、靜止或參考變化均不能揭開。
+        if isDepartureLatched { refreshInactiveStatus(); return }
         let result = continuity.observe(pose)
-        guard result != .invalid else { invalidatePose(reason: "姿态数据无效"); return }
+        guard result != .invalid else { invalidatePose(reason: "姿態數據無效"); return }
         if result == .newReference || result == .interrupted {
             hasReference = true
             needsNeutral = true
@@ -116,7 +149,7 @@ public struct PrivacyMachine: Sendable, Equatable {
             if isShielded {
                 requiresManualReveal = true
                 phase = .shielded
-                status = "姿态连续性改变；遮挡保持，请手动解除"
+                status = "姿態連續性改變；遮擋保持，請手動解除"
                 return
             }
         }
@@ -131,7 +164,7 @@ public struct PrivacyMachine: Sendable, Equatable {
             clearCandidate()
             if isShielded { phase = .shielded }
             else { phase = .watching }
-            status = "当前姿态不适合判断屏幕朝向"
+            status = "當前姿態不適合判斷屏幕朝向"
             return
         }
         let yaw = abs(wrappedDegrees(pose.yaw))
@@ -139,28 +172,28 @@ public struct PrivacyMachine: Sendable, Equatable {
             && abs(pose.roll) < 45 && pose.angularSpeed <= 15
         if needsNeutral && !isShielded {
             phase = .waitingForNeutral
-            status = "回到正视方向并稍作停留后启用自动检测"
+            status = "回到正視方向並稍作停留後啓用自動檢測"
             if dwell(neutral, at: pose.timestamp, duration: settings.returnDelay) {
                 needsNeutral = false
                 clearCandidate()
                 phase = .watching
-                status = "正在留意头部朝向"
+                status = "正在留意頭部朝向"
             }
             return
         }
         if isShielded {
             phase = neutral ? .returning : .shielded
-            status = neutral ? "正视方向稳定后恢复显示" : "Privacy Mode"
+            status = neutral ? "正視方向穩定後恢復顯示" : "Privacy Mode"
             if dwell(neutral, at: pose.timestamp, duration: settings.returnDelay) {
                 isShielded = false
                 phase = .watching
-                status = "正在留意头部朝向"
+                status = "正在留意頭部朝向"
                 clearCandidate()
             }
         } else {
             let away = yaw >= settings.triggerAngle && pose.angularSpeed <= 90
             phase = away ? .turningAway : .watching
-            status = away ? "转头持续达到设定时间后遮挡" : "正在留意头部朝向"
+            status = away ? "轉頭持續達到設定時間後遮擋" : "正在留意頭部朝向"
             if dwell(away, at: pose.timestamp, duration: settings.triggerDelay) {
                 isShielded = true
                 requiresManualReveal = false
@@ -181,21 +214,24 @@ public struct PrivacyMachine: Sendable, Equatable {
     private mutating func clearCandidate() { candidateStarted = nil; progress = 0 }
 
     private mutating func refreshInactiveStatus() {
-        if isShielded {
+        if isDepartureLatched {
+            phase = .departureHeld
+            status = "偵測到可能離開書桌，隱私遮擋已保持；請手動解除"
+        } else if isShielded {
             phase = .shielded
-            if requiresManualReveal { status = "遮挡保持，请手动解除" }
+            if requiresManualReveal { status = "遮擋保持，請手動解除" }
         } else if isSuspended {
             phase = .suspended
-            status = "颈部活动期间暂停自动隐私检测"
+            status = "頸部活動期間暫停自動隱私檢測"
         } else if !automaticEnabled {
             phase = .disabled
-            status = "自动隐私保护已关闭"
+            status = "自動隱私保護已關閉"
         } else if !hasReference {
             phase = .needsCalibration
-            status = "请先正视屏幕并校准"
+            status = "請先正視屏幕並校準"
         } else {
             phase = .waitingForNeutral
-            status = "回到正视方向并稍作停留后启用自动检测"
+            status = "回到正視方向並稍作停留後啓用自動檢測"
         }
     }
 }
