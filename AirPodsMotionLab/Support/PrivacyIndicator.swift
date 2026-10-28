@@ -33,11 +33,6 @@ extension InteractionStore {
         if snapshot.privacy.isShielded { return .shielded }
         guard privacyEnabled else { return .off }
         if snapshot.automaticSuspended { return .paused }
-        switch snapshot.privacy.phase {
-        case .watching, .turningAway, .returning:
-            return snapshot.sensorReady ? .armed : .notArmed
-        default:
-            return .notArmed
-        }
+        return snapshot.privacy.isArmed && snapshot.sensorReady ? .armed : .notArmed
     }
 }

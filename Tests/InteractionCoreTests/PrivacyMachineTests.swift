@@ -241,3 +241,65 @@ private func shielded() -> PrivacyMachine {
     #expect(try JSONDecoder().decode(PrivacySettings.self, from: JSONEncoder().encode(off)) == off)
     #expect(!off.sanitized().departureDetectionEnabled)
 }
+
+@Test func armedOnlyWhileTurningAwayWouldStartTheShieldCountdown() {
+    var machine = PrivacyMachine()
+    #expect(!machine.isArmed)
+    machine.setAutomaticEnabled(true)
+    #expect(!machine.isArmed)
+    feed(&machine, from: 0, through: 0.4)
+    #expect(machine.phase == .waitingForNeutral)
+    #expect(!machine.isArmed)
+    machine.process(pose(0.5))
+    #expect(machine.phase == .watching)
+    #expect(machine.isArmed)
+    machine.process(pose(0.6, yaw: 15))
+    machine.process(pose(0.7, yaw: 30))
+    machine.process(pose(0.8, yaw: 40))
+    #expect(machine.phase == .turningAway)
+    #expect(machine.isArmed)
+    feed(&machine, from: 0.9, through: 1.4, yaw: 40)
+    #expect(machine.isShielded)
+    #expect(!machine.isArmed)
+
+    var suspended = armed()
+    suspended.setSuspended(true)
+    #expect(!suspended.isArmed)
+    suspended.setSuspended(false)
+    #expect(!suspended.isArmed)
+
+    var disabled = armed()
+    disabled.setAutomaticEnabled(false)
+    #expect(!disabled.isArmed)
+
+    var lost = armed()
+    lost.invalidatePose()
+    #expect(!lost.isArmed)
+
+    var replaced = armed()
+    replaced.process(pose(0.7, reference: UUID()))
+    #expect(!replaced.isArmed)
+}
+
+@Test func steepPitchKeepsWatchingPhaseButIsNotArmed() {
+    var machine = armed()
+    #expect(machine.isArmed)
+    for (index, pitch) in [20.0, 40, 60, 80].enumerated() {
+        machine.process(pose(0.7 + Double(index) * 0.1, pitch: pitch))
+    }
+    #expect(machine.phase == .watching)
+    #expect(!machine.isArmed)
+    machine.process(pose(1.1, yaw: 20, pitch: 80))
+    machine.process(pose(1.2, yaw: 40, pitch: 80))
+    for index in 0...10 { machine.process(pose(1.3 + Double(index) * 0.1, yaw: 40, pitch: 80)) }
+    #expect(!machine.isShielded)
+    #expect(machine.phase == .watching)
+    #expect(!machine.isArmed)
+    machine.process(pose(2.4, yaw: 20, pitch: 80))
+    machine.process(pose(2.5, pitch: 80))
+    for (index, pitch) in [60.0, 40, 20, 0].enumerated() {
+        machine.process(pose(2.6 + Double(index) * 0.1, pitch: pitch))
+    }
+    #expect(machine.phase == .watching)
+    #expect(machine.isArmed)
+}
