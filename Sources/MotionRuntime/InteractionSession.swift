@@ -192,7 +192,7 @@ public actor InteractionSession {
         await restorePrivacyAfterExercise()
     }
 
-    public func invalidateSensor(reason: String) { invalidate(reason) }
+    public func invalidateSensor(reason: String) { invalidate(reason, immediate: true) }
 
     public func shutdown() async {
         isRunning = false
@@ -267,11 +267,19 @@ public actor InteractionSession {
         state.capture = capture
         let age = capture.lastReceivedUptime.map { ProcessInfo.processInfo.systemUptime - $0 } ?? .infinity
         state.sensorReady = capture.phase == .streaming && age <= 0.3
+        // 使用者停止採集（或應用結束）是正常關閉，不是資料遺失，不自動遮擋。
+        let stoppedOnPurpose = !capture.isRequested && (capture.phase == .stopped || capture.phase == .idle)
+        let disconnected = capture.availability.connection == .disconnected
         if !state.sensorReady, dataWasValid || state.latestPose != nil {
-            invalidate("耳機數據不可用；遮擋保留，活動判定暫停。")
+            invalidate("耳機數據不可用；遮擋保留，活動判定暫停。", dataLost: !stoppedOnPurpose, immediate: disconnected)
         }
         if capture.calibrationID == nil, state.latestPose != nil {
-            invalidate("參考姿態已失效，請重新校準。")
+            invalidate("參考姿態已失效，請重新校準。", dataLost: !stoppedOnPurpose)
+        }
+        if stoppedOnPurpose, state.privacy.dataLossSince != nil {
+            state.privacy.invalidatePose(reason: "採集已停止")
+        } else {
+            state.privacy.checkDataLoss(at: disconnected ? .infinity : ProcessInfo.processInfo.systemUptime)
         }
         if let deskReferenceID, capture.calibrationID != deskReferenceID || !state.sensorReady {
             invalidateDesk()
@@ -285,13 +293,20 @@ public actor InteractionSession {
         advanceDeparture()
     }
 
-    private func invalidate(_ reason: String) {
+    /// `dataLost` marks evidence that disappeared while capture was wanted;
+    /// armed protection then fails closed (see `PrivacyMachine.poseDataLost`).
+    /// `immediate` skips the resume grace for definitive loss (disconnect, sleep).
+    private func invalidate(_ reason: String, dataLost: Bool = true, immediate: Bool = false) {
         invalidateDesk()
         dataWasValid = false
         state.sensorReady = false
         state.latestPose = nil
         lastReceipt = nil
-        state.privacy.invalidatePose(reason: reason)
+        if dataLost {
+            state.privacy.poseDataLost(reason: reason, at: ProcessInfo.processInfo.systemUptime, immediate: immediate)
+        } else {
+            state.privacy.invalidatePose(reason: reason)
+        }
         if state.exercise.isActive { state.exercise.invalidatePose(reason: reason) }
     }
 

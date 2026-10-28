@@ -21,6 +21,7 @@ final class InteractionStore {
     @ObservationIgnored private var isActive = false
     @ObservationIgnored private var shuttingDown = false
     @ObservationIgnored private var sleepObserver: (any NSObjectProtocol)?
+    @ObservationIgnored private let disarmNotifier = DisarmNotifier()
 
     init(motion: MotionSession) {
         let defaults = UserDefaults.standard
@@ -115,6 +116,7 @@ final class InteractionStore {
 
     private func apply(_ value: InteractionSnapshot) {
         snapshot = value
+        disarmNotifier.observe(privacyIndicator, status: value.privacy.status)
         if value.privacy.isShielded {
             overlay?.show(status: value.privacy.status)
         } else {

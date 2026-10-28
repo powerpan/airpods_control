@@ -35,18 +35,19 @@ struct FeatureSettingsView: View {
             }
 
             Section("離座偵測") {
-                Toggle("持續行走後保持遮擋", isOn: Binding(
-                    get: { store.privacySettings.departureDetectionEnabled },
-                    set: { enabled in
-                        var settings = store.privacySettings
-                        settings.departureDetectionEnabled = enabled
-                        store.updatePrivacySettings(settings)
-                    }
-                ))
+                Toggle("持續行走後保持遮擋", isOn: privacyBinding(\.departureDetectionEnabled))
                 Text(store.snapshot.departureStatus)
                     .font(.caption).foregroundStyle(.secondary)
                     .accessibilityIdentifier("privacy-departure-status")
                 Text("可靠步行或跑步證據持續約 2.5 秒後，遮擋會保持到手動解除；回正或靜止不會解除。需要 macOS 15 及相容耳機，無法使用時保留原有轉頭遮擋。")
+                    .font(.caption).foregroundStyle(.secondary)
+            }
+
+            Section("耳機資料中斷") {
+                Toggle("已就緒時遺失耳機資料即遮擋", isOn: privacyBinding(\.shieldOnDataLossEnabled))
+                Text("自動保護已就緒時，若耳機斷開、放回充電盒、離開藍牙範圍或資料流中斷，會遮擋並保持到手動解除；資料流短暫停頓先等待約 1 秒恢復。手動停止採集、結束應用及頸部活動期間不會觸發。關閉後資料中斷只會停止偵測。")
+                    .font(.caption).foregroundStyle(.secondary)
+                Text("保護由已就緒變為未就緒並持續數秒時，會發出系統通知提醒重新校準。")
                     .font(.caption).foregroundStyle(.secondary)
             }
 
@@ -152,7 +153,7 @@ struct FeatureSettingsView: View {
         return phase != .idle && phase != .awaitingCalibration && phase != .completed
     }
 
-    private func privacyBinding(_ keyPath: WritableKeyPath<PrivacySettings, Double>) -> Binding<Double> {
+    private func privacyBinding<Value>(_ keyPath: WritableKeyPath<PrivacySettings, Value>) -> Binding<Value> {
         Binding(
             get: { store.privacySettings[keyPath: keyPath] },
             set: { value in

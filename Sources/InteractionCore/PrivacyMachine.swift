@@ -6,19 +6,22 @@ public struct PrivacySettings: Codable, Sendable, Equatable {
     public var triggerDelay: TimeInterval
     public var returnDelay: TimeInterval
     public var departureDetectionEnabled: Bool
+    /// Losing headphone data while armed raises a shield instead of quietly disarming.
+    public var shieldOnDataLossEnabled: Bool
 
     public init(triggerAngle: Double = 35, returnAngle: Double = 20,
                 triggerDelay: TimeInterval = 0.6, returnDelay: TimeInterval = 0.5,
-                departureDetectionEnabled: Bool = true) {
+                departureDetectionEnabled: Bool = true, shieldOnDataLossEnabled: Bool = true) {
         self.triggerAngle = triggerAngle
         self.returnAngle = returnAngle
         self.triggerDelay = triggerDelay
         self.returnDelay = returnDelay
         self.departureDetectionEnabled = departureDetectionEnabled
+        self.shieldOnDataLossEnabled = shieldOnDataLossEnabled
     }
 
     private enum CodingKeys: String, CodingKey {
-        case triggerAngle, returnAngle, triggerDelay, returnDelay, departureDetectionEnabled
+        case triggerAngle, returnAngle, triggerDelay, returnDelay, departureDetectionEnabled, shieldOnDataLossEnabled
     }
 
     public init(from decoder: any Decoder) throws {
@@ -27,7 +30,8 @@ public struct PrivacySettings: Codable, Sendable, Equatable {
                   returnAngle: try values.decodeIfPresent(Double.self, forKey: .returnAngle) ?? 20,
                   triggerDelay: try values.decodeIfPresent(Double.self, forKey: .triggerDelay) ?? 0.6,
                   returnDelay: try values.decodeIfPresent(Double.self, forKey: .returnDelay) ?? 0.5,
-                  departureDetectionEnabled: try values.decodeIfPresent(Bool.self, forKey: .departureDetectionEnabled) ?? true)
+                  departureDetectionEnabled: try values.decodeIfPresent(Bool.self, forKey: .departureDetectionEnabled) ?? true,
+                  shieldOnDataLossEnabled: try values.decodeIfPresent(Bool.self, forKey: .shieldOnDataLossEnabled) ?? true)
     }
 
     public func sanitized() -> Self {
@@ -36,7 +40,8 @@ public struct PrivacySettings: Codable, Sendable, Equatable {
                     returnAngle: bounded(returnAngle, 5...(trigger - 5), fallback: min(20, trigger - 5)),
                     triggerDelay: bounded(triggerDelay, 0.2...3, fallback: 0.6),
                     returnDelay: bounded(returnDelay, 0.3...3, fallback: 0.5),
-                    departureDetectionEnabled: departureDetectionEnabled)
+                    departureDetectionEnabled: departureDetectionEnabled,
+                    shieldOnDataLossEnabled: shieldOnDataLossEnabled)
     }
 }
 
@@ -55,12 +60,16 @@ public struct PrivacyMachine: Sendable, Equatable {
     public private(set) var phase: PrivacyPhase = .disabled
     public private(set) var progress = 0.0
     public private(set) var status = "自動隱私保護已關閉"
+    /// Uptime at which armed protection lost its data and has not yet seen it resume.
+    public private(set) var dataLossSince: TimeInterval?
+    public static let dataLossGrace: TimeInterval = 1
 
     private var continuity = PoseContinuity()
     private var candidateStarted: TimeInterval?
     private var needsNeutral = true
     private var hasReference = false
     private var headingUsable = false
+    private var dataLossReason: String?
 
     /// True only while turning away would start the shield countdown: automatic
     /// detection is on and not suspended, nothing is shielded, a reference has
@@ -77,6 +86,7 @@ public struct PrivacyMachine: Sendable, Equatable {
     public mutating func updateSettings(_ settings: PrivacySettings) {
         self.settings = settings.sanitized()
         clearCandidate()
+        clearDataLoss()
         needsNeutral = true
         refreshInactiveStatus()
     }
@@ -85,6 +95,7 @@ public struct PrivacyMachine: Sendable, Equatable {
         guard enabled != automaticEnabled else { return }
         automaticEnabled = enabled
         clearCandidate()
+        clearDataLoss()
         needsNeutral = true
         if !enabled, isShielded { requiresManualReveal = true }
         refreshInactiveStatus()
@@ -94,6 +105,7 @@ public struct PrivacyMachine: Sendable, Equatable {
         guard suspended != isSuspended else { return }
         isSuspended = suspended
         clearCandidate()
+        clearDataLoss()
         needsNeutral = true
         refreshInactiveStatus()
     }
@@ -117,6 +129,7 @@ public struct PrivacyMachine: Sendable, Equatable {
     }
 
     public mutating func manualReveal() {
+        clearDataLoss()
         isDepartureLatched = false
         isShielded = false
         requiresManualReveal = false
@@ -126,6 +139,7 @@ public struct PrivacyMachine: Sendable, Equatable {
     }
 
     public mutating func invalidatePose(reason: String = "運動數據中斷") {
+        clearDataLoss()
         continuity.reset()
         hasReference = false
         headingUsable = false
@@ -143,6 +157,43 @@ public struct PrivacyMachine: Sendable, Equatable {
         }
     }
 
+    /// Headphone data stopped arriving (disconnect, case, stream gap, sleep).
+    /// While armed this fails closed: protection that cannot see the head
+    /// shields instead of silently disarming. A stream gap first gets
+    /// `dataLossGrace` to resume, so a Bluetooth hiccup does not demand a
+    /// manual reveal; `immediate` is for definitive loss. A normal stop or the
+    /// neck exercise must use `invalidatePose` instead.
+    public mutating func poseDataLost(reason: String = "運動數據中斷", at uptime: TimeInterval,
+                                      immediate: Bool = false) {
+        let pending = settings.shieldOnDataLossEnabled && !isShielded && (isArmed || dataLossSince != nil)
+        let since = dataLossSince ?? uptime
+        let originalReason = dataLossReason ?? reason
+        invalidatePose(reason: reason)
+        guard pending else { return }
+        dataLossSince = since
+        dataLossReason = originalReason
+        status = "\(reason)；資料未及時恢復將自動遮擋"
+        checkDataLoss(at: immediate ? .infinity : uptime)
+    }
+
+    /// Raises the pending data-loss shield once the grace has passed without
+    /// valid data. Callers poll this; any valid pose cancels the pending loss.
+    public mutating func checkDataLoss(at uptime: TimeInterval) {
+        guard let since = dataLossSince else { return }
+        guard automaticEnabled, !isSuspended, settings.shieldOnDataLossEnabled, !isShielded else {
+            clearDataLoss()
+            return
+        }
+        guard uptime - since >= Self.dataLossGrace else { return }
+        let reason = dataLossReason ?? "運動數據中斷"
+        clearDataLoss()
+        isShielded = true
+        requiresManualReveal = true
+        clearCandidate()
+        phase = .shielded
+        status = "\(reason)；已自動遮擋，請手動解除"
+    }
+
     public mutating func resetReference() {
         invalidatePose(reason: "參考姿態已改變")
     }
@@ -152,6 +203,7 @@ public struct PrivacyMachine: Sendable, Equatable {
         if isDepartureLatched { refreshInactiveStatus(); return }
         let result = continuity.observe(pose)
         guard result != .invalid else { invalidatePose(reason: "姿態數據無效"); return }
+        clearDataLoss() // valid calibrated data resumed within the grace
         if result == .newReference || result == .interrupted {
             hasReference = true
             needsNeutral = true
@@ -224,6 +276,8 @@ public struct PrivacyMachine: Sendable, Equatable {
     }
 
     private mutating func clearCandidate() { candidateStarted = nil; progress = 0 }
+
+    private mutating func clearDataLoss() { dataLossSince = nil; dataLossReason = nil }
 
     private mutating func refreshInactiveStatus() {
         if isDepartureLatched {
