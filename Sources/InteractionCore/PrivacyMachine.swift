@@ -60,6 +60,15 @@ public struct PrivacyMachine: Sendable, Equatable {
     private var candidateStarted: TimeInterval?
     private var needsNeutral = true
     private var hasReference = false
+    private var headingUsable = false
+
+    /// True only while turning away would start the shield countdown: automatic
+    /// detection is on and not suspended, nothing is shielded, a reference has
+    /// re-armed at neutral, and the latest pose gives a usable heading. The
+    /// phase alone cannot say this (a steep pitch keeps `.watching`).
+    public var isArmed: Bool {
+        automaticEnabled && !isSuspended && !isShielded && hasReference && !needsNeutral && headingUsable
+    }
 
     public init(settings: PrivacySettings = PrivacySettings()) {
         self.settings = settings.sanitized()
@@ -119,6 +128,7 @@ public struct PrivacyMachine: Sendable, Equatable {
     public mutating func invalidatePose(reason: String = "運動數據中斷") {
         continuity.reset()
         hasReference = false
+        headingUsable = false
         needsNeutral = true
         clearCandidate()
         if isDepartureLatched {
@@ -161,12 +171,14 @@ public struct PrivacyMachine: Sendable, Equatable {
         }
         // Near the pitch singularity yaw ceases to be a useful viewing heading.
         guard abs(pose.pitch) < 75 else {
+            headingUsable = false
             clearCandidate()
             if isShielded { phase = .shielded }
             else { phase = .watching }
             status = "當前姿態不適合判斷屏幕朝向"
             return
         }
+        headingUsable = true
         let yaw = abs(wrappedDegrees(pose.yaw))
         let neutral = yaw <= settings.returnAngle && abs(pose.pitch) < 45
             && abs(pose.roll) < 45 && pose.angularSpeed <= 15
