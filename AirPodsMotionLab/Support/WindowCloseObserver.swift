@@ -28,7 +28,7 @@ struct WindowCloseObserver: NSViewRepresentable {
 
 /// NotificationCenter removal is thread-safe; the immutable token may be
 /// released off the main actor when SwiftUI destroys its view hierarchy.
-private final class CloseObservation: @unchecked Sendable {
+final class CloseObservation: @unchecked Sendable {
     private let token: any NSObjectProtocol
     init(_ token: any NSObjectProtocol) { self.token = token }
     deinit { NotificationCenter.default.removeObserver(token) }

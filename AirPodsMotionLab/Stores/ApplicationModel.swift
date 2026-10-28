@@ -5,6 +5,7 @@ import MotionRuntime
 final class ApplicationModel {
     let motion: MotionStore
     let features: InteractionStore
+    let system = SystemIntegrationStore()
     private var activated = false
 
     init() {
@@ -22,9 +23,11 @@ final class ApplicationModel {
         }
         motion.activate()
         features.activate()
+        system.activate { [features] in features.showShield() }
     }
 
     func shutdown() async {
+        system.shutdown()
         await features.shutdown()
         await motion.shutdown()
     }
