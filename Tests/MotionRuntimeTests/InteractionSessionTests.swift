@@ -21,6 +21,7 @@ private final class InteractionMockSource: MotionSource {
 
     func stop() { continuation?.finish(); continuation = nil }
     func send(_ sample: MotionSample) { continuation?.yield(.sample(sample)) }
+    func disconnect() { continuation?.yield(.connection(.disconnected)) }
 }
 
 @MainActor
@@ -254,5 +255,106 @@ func exerciseAxesRemainHeadLocalAcrossDifferentCalibrationHeadings() async throw
         #expect(await fixture.interactions.snapshot().exercise.completedCount == 5)
     }
     #expect(fixture.source.startCount == 1)
+    await fixture.shutdown()
+}
+
+@Test @MainActor
+func losingHeadphoneDataWhileArmedRaisesAShieldThatNeedsManualReveal() async {
+    for disconnect in [false, true] {
+        let fixture = InteractionFixture()
+        await fixture.activate()
+        await fixture.calibrateAndArmPrivacy()
+        // AirPods put in the case or out of range: either an explicit
+        // disconnect or the stream simply stops while capture is still wanted.
+        if disconnect { fixture.source.disconnect() }
+        #expect(await waitForInteraction { await fixture.interactions.snapshot().privacy.isShielded })
+        let lost = await fixture.interactions.snapshot()
+        #expect(lost.privacy.requiresManualReveal)
+        #expect(lost.privacy.phase == .shielded)
+        #expect(await fixture.motion.snapshot().isRequested)
+        await fixture.interactions.hideShield()
+        #expect(await fixture.interactions.snapshot().privacy.isShielded == false)
+        await fixture.shutdown()
+    }
+}
+
+@Test @MainActor
+func aShortStreamHiccupResumesWithoutAShieldAndRearmsAtNeutral() async {
+    let fixture = InteractionFixture()
+    await fixture.activate()
+    await fixture.calibrateAndArmPrivacy()
+    #expect(await waitForInteraction { await fixture.interactions.snapshot().privacy.dataLossSince != nil })
+    #expect(await fixture.interactions.snapshot().privacy.isShielded == false)
+    for _ in 0..<7 { await fixture.send() }
+    let resumed = await fixture.interactions.snapshot()
+    #expect(!resumed.privacy.isShielded)
+    #expect(resumed.privacy.dataLossSince == nil)
+    #expect(resumed.privacy.phase == .watching)
+    // Keep the stream alive past the grace: the cancelled loss never fires late.
+    for _ in 0..<12 {
+        try? await Task.sleep(for: .milliseconds(80))
+        await fixture.send()
+    }
+    #expect(await fixture.interactions.snapshot().privacy.isShielded == false)
+    await fixture.shutdown()
+}
+
+@Test @MainActor
+func sleepWhileArmedShieldsButOptingOutOnlyDisarms() async {
+    let fixture = InteractionFixture()
+    await fixture.activate()
+    await fixture.calibrateAndArmPrivacy()
+    await fixture.interactions.invalidateSensor(reason: "系統進入睡眠")
+    #expect(await fixture.interactions.snapshot().privacy.requiresManualReveal)
+    await fixture.shutdown()
+
+    let optedOut = InteractionFixture()
+    await optedOut.activate()
+    await optedOut.interactions.updatePrivacySettings(PrivacySettings(shieldOnDataLossEnabled: false))
+    await optedOut.calibrateAndArmPrivacy()
+    await optedOut.interactions.invalidateSensor(reason: "系統進入睡眠")
+    try? await Task.sleep(for: .milliseconds(1200)) // past the grace for the stalled stream too
+    let disarmed = await optedOut.interactions.snapshot()
+    #expect(!disarmed.privacy.isShielded)
+    #expect(disarmed.privacy.phase == .needsCalibration)
+    await optedOut.shutdown()
+}
+
+@Test @MainActor
+func stoppingCaptureOnPurposeDisarmsWithoutShielding() async {
+    let fixture = InteractionFixture()
+    await fixture.activate()
+    await fixture.calibrateAndArmPrivacy()
+    await fixture.motion.stop()
+    #expect(await waitForInteraction { await fixture.interactions.snapshot().latestPose == nil })
+    try? await Task.sleep(for: .milliseconds(1200))
+    let stopped = await fixture.interactions.snapshot()
+    #expect(!stopped.privacy.isShielded)
+    #expect(stopped.privacy.automaticEnabled)
+    #expect(stopped.privacy.phase == .needsCalibration)
+    await fixture.shutdown()
+}
+
+@Test @MainActor
+func dataLossDuringOrAfterTheExerciseDoesNotShield() async {
+    let fixture = InteractionFixture()
+    await fixture.activate()
+    await fixture.calibrateAndArmPrivacy()
+    #expect(await fixture.interactions.startExercise())
+    await fixture.send(calibrated: false)
+    #expect(await fixture.interactions.calibrateExercise())
+    await fixture.send()
+    try? await Task.sleep(for: .milliseconds(1200)) // stream stalls mid-exercise
+    let practicing = await fixture.interactions.snapshot()
+    #expect(practicing.exercise.isActive)
+    #expect(!practicing.privacy.isShielded)
+    #expect(practicing.latestPose == nil)
+
+    await fixture.interactions.endExercise()
+    await fixture.send(calibrated: false)
+    try? await Task.sleep(for: .milliseconds(1200))
+    let ended = await fixture.interactions.snapshot()
+    #expect(!ended.privacy.isShielded)
+    #expect(ended.privacy.phase == .needsCalibration)
     await fixture.shutdown()
 }
