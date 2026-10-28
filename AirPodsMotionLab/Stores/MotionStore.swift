@@ -116,7 +116,7 @@ final class MotionStore {
         isBusy = true
         Task { [weak self, session] in
             let succeeded = await session.calibrate()
-            self?.localMessage = succeeded ? "已将最新采集姿态设为参考。" : "当前没有可用于校准的新鲜数据。"
+            self?.localMessage = succeeded ? "已將最新採集姿態設為參考。" : "當前沒有可用於校準的新鮮數據。"
             if succeeded { self?.didCalibrate() }
             let value = await session.snapshot()
             self?.receive(value)

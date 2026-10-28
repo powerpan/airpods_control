@@ -48,19 +48,19 @@ public enum ExerciseStep: String, CaseIterable, Sendable, Equatable {
         switch self {
         case .turnLeft: "向左看"
         case .turnRight: "向右看"
-        case .tiltLeft: "轻轻向左侧倾"
-        case .tiltRight: "轻轻向右侧倾"
-        case .nod: "缓慢低头"
+        case .tiltLeft: "輕輕向左側傾"
+        case .tiltRight: "輕輕向右側傾"
+        case .nod: "緩慢低頭"
         }
     }
 
     public var instruction: String {
         switch self {
-        case .turnLeft: "跟随模型，缓慢向左转头。超过设定幅度后舒适地保持。"
-        case .turnRight: "跟随模型，缓慢向右转头。超过设定幅度后舒适地保持。"
-        case .tiltLeft: "跟随模型，轻轻向左侧倾。超过设定幅度后保持，不耸肩。"
-        case .tiltRight: "跟随模型，轻轻向右侧倾。超过设定幅度后保持，不耸肩。"
-        case .nod: "跟随模型缓慢低头，超过设定幅度后保持；不做后仰或绕圈动作。"
+        case .turnLeft: "跟隨模型，緩慢向左轉頭。超過設定幅度後舒適地保持。"
+        case .turnRight: "跟隨模型，緩慢向右轉頭。超過設定幅度後舒適地保持。"
+        case .tiltLeft: "跟隨模型，輕輕向左側傾。超過設定幅度後保持，不聳肩。"
+        case .tiltRight: "跟隨模型，輕輕向右側傾。超過設定幅度後保持，不聳肩。"
+        case .nod: "跟隨模型緩慢低頭，超過設定幅度後保持；不做後仰或繞圈動作。"
         }
     }
 }
@@ -87,7 +87,7 @@ public struct NeckExerciseMachine: Sendable, Equatable {
     public private(set) var elapsed: TimeInterval = 0
     public private(set) var progress = 0.0
     public private(set) var currentPose: InteractionPose?
-    public private(set) var status = "按舒适范围做一段轻缓活动"
+    public private(set) var status = "按舒適範圍做一段輕緩活動"
 
     private var referenceID: UUID?
     private var continuity = PoseContinuity()
@@ -124,7 +124,7 @@ public struct NeckExerciseMachine: Sendable, Equatable {
             referenceID = nil
             continuity.reset()
             phase = .awaitingCalibration
-            status = "参数已更新，请重新正视并校准"
+            status = "參數已更新，請重新正視並校準"
         }
     }
 
@@ -139,7 +139,7 @@ public struct NeckExerciseMachine: Sendable, Equatable {
         freshSinceLoss = false
         clearCandidate()
         phase = .awaitingCalibration
-        status = "舒适坐好，正视屏幕后校准"
+        status = "舒適坐好，正視屏幕後校準"
     }
 
     public mutating func calibrate(referenceID: UUID) {
@@ -150,7 +150,7 @@ public struct NeckExerciseMachine: Sendable, Equatable {
         freshSinceLoss = false
         phaseBeforePause = .approaching
         if phase != .paused { phase = .approaching }
-        status = phase == .paused ? "已校准，继续后重新靠近当前目标" : (currentStep?.instruction ?? "")
+        status = phase == .paused ? "已校準，繼續後重新靠近當前目標" : (currentStep?.instruction ?? "")
     }
 
     public mutating func pause() {
@@ -159,7 +159,7 @@ public struct NeckExerciseMachine: Sendable, Equatable {
         phase = .paused
         clearCandidate()
         continuity.reset()
-        status = "已暂停，按自己的节奏继续"
+        status = "已暫停，按自己的節奏繼續"
     }
 
     public mutating func resume() {
@@ -168,7 +168,7 @@ public struct NeckExerciseMachine: Sendable, Equatable {
             if phase == .paused || phase == .signalLost { phase = .approaching }
         } else if phase == .signalLost {
             guard freshSinceLoss, referenceID != nil else {
-                status = "等待有效数据；参考改变时请重新校准"
+                status = "等待有效數據；參考改變時請重新校準"
                 return
             }
             // An interruption cannot preserve an acquired target: ask the user
@@ -177,7 +177,7 @@ public struct NeckExerciseMachine: Sendable, Equatable {
         } else { return }
         continuity.reset()
         clearCandidate()
-        status = phase == .awaitingCalibration ? "请正视屏幕并重新校准" : instruction
+        status = phase == .awaitingCalibration ? "請正視屏幕並重新校準" : instruction
     }
 
     public mutating func skip() {
@@ -188,13 +188,13 @@ public struct NeckExerciseMachine: Sendable, Equatable {
         continuity.reset()
         if stepIndex >= ExerciseStep.allCases.count {
             phase = .completed
-            status = "本次活动结束"
+            status = "本次活動結束"
         } else if phase == .paused {
             phaseBeforePause = referenceID == nil ? .awaitingCalibration : .approaching
-            status = "已跳过，继续后进入下一动作"
+            status = "已跳過，繼續後進入下一動作"
         } else if phase == .signalLost || referenceID == nil {
             phase = .awaitingCalibration
-            status = "已跳过，收到数据后请重新校准"
+            status = "已跳過，收到數據後請重新校準"
         } else {
             phase = .approaching
             status = instruction
@@ -206,10 +206,10 @@ public struct NeckExerciseMachine: Sendable, Equatable {
         referenceID = nil
         continuity.reset()
         clearCandidate()
-        status = "本次活动已结束"
+        status = "本次活動已結束"
     }
 
-    public mutating func invalidatePose(reason: String = "运动数据中断") {
+    public mutating func invalidatePose(reason: String = "運動數據中斷") {
         guard isActive else { return }
         if phase == .approaching || phase == .returning || phase == .paused {
             phaseBeforePause = referenceID == nil ? .awaitingCalibration : .approaching
@@ -218,13 +218,13 @@ public struct NeckExerciseMachine: Sendable, Equatable {
         clearCandidate()
         freshSinceLoss = false
         if phase != .paused && phase != .awaitingCalibration { phase = .signalLost }
-        status = "\(reason)，动作判定已暂停"
+        status = "\(reason)，動作判定已暫停"
     }
 
     public mutating func process(_ pose: InteractionPose) {
         let previous = continuity.previous
         let result = continuity.observe(pose)
-        guard result != .invalid else { invalidatePose(reason: "姿态数据无效"); return }
+        guard result != .invalid else { invalidatePose(reason: "姿態數據無效"); return }
         currentPose = pose
         guard isActive else { return }
         guard let referenceID else { return }
@@ -234,16 +234,16 @@ public struct NeckExerciseMachine: Sendable, Equatable {
             continuity.reset()
             if phase != .paused { phase = .awaitingCalibration }
             phaseBeforePause = .approaching
-            status = "参考姿态已改变，请确认正视方向后重新校准"
+            status = "參考姿態已改變，請確認正視方向後重新校準"
             return
         }
         if result == .interrupted {
-            invalidatePose(reason: "样本不连续或姿态跳变")
+            invalidatePose(reason: "樣本不連續或姿態跳變")
             return
         }
         if phase == .signalLost {
             freshSinceLoss = true
-            status = "数据已恢复，点击继续或重新校准"
+            status = "數據已恢復，點擊繼續或重新校準"
             return
         }
         guard phase == .approaching || phase == .returning else { return }
@@ -252,29 +252,29 @@ public struct NeckExerciseMachine: Sendable, Equatable {
         }
         if phase == .approaching {
             let beyondThreshold = exceedsThreshold(pose)
-            status = beyondThreshold ? "已达到幅度，舒适地保持" : instruction
+            status = beyondThreshold ? "已達到幅度，舒適地保持" : instruction
             if dwell(beyondThreshold, at: pose.timestamp, duration: settings.stableHold) {
                 phase = .returning
                 clearCandidate()
-                status = "缓慢回到正视位置"
+                status = "緩慢回到正視位置"
             }
         } else {
             let tolerance = min(6, min(settings.yawAngle, settings.tiltAngle, settings.nodAngle) * 0.5)
             let neutral = abs(wrappedDegrees(pose.yaw)) <= tolerance
                 && abs(pose.pitch) <= tolerance && abs(wrappedDegrees(pose.roll)) <= tolerance
-            status = neutral ? "在中立位置稍作停留" : "缓慢回到正视位置"
+            status = neutral ? "在中立位置稍作停留" : "緩慢回到正視位置"
             if dwell(neutral, at: pose.timestamp, duration: settings.returnHold) {
                 completedCount += 1
                 stepIndex += 1
                 clearCandidate()
                 phase = stepIndex >= ExerciseStep.allCases.count ? .completed : .approaching
-                status = phase == .completed ? "这一段轻缓活动已完成" : instruction
+                status = phase == .completed ? "這一段輕緩活動已完成" : instruction
             }
         }
     }
 
     private var instruction: String {
-        phase == .returning ? "缓慢回到正视位置" : (currentStep?.instruction ?? "")
+        phase == .returning ? "緩慢回到正視位置" : (currentStep?.instruction ?? "")
     }
 
     private func exceedsThreshold(_ pose: InteractionPose) -> Bool {

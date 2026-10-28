@@ -60,6 +60,6 @@ func headphoneEmptyCallbackCreatedOnMainActorRunsOnAnOperationQueue() async {
         Issue.record("Expected a nil-data background callback to yield a failure event")
         return
     }
-    #expect(message.contains("没有包含数据或错误"))
+    #expect(message.contains("沒有包含數據或錯誤"))
     #expect(await iterator.next() == nil)
 }

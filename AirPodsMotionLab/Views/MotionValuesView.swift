@@ -10,7 +10,7 @@ struct MotionValuesView: View {
     let isSimulated: Bool
 
     private var processedTitle: String {
-        let reference = motion?.isCalibrated == true ? "参考姿态下" : "未校准"
+        let reference = motion?.isCalibrated == true ? "參考姿態下" : "未校準"
         return "\(reference) · \(smoothingEnabled ? "已平滑" : "未平滑")"
     }
 
@@ -19,12 +19,12 @@ struct MotionValuesView: View {
             GroupBox {
                 VStack(alignment: .leading, spacing: 12) {
                     HStack {
-                        Text("姿态角").font(.headline)
+                        Text("姿態角").font(.headline)
                         Spacer()
                         if isPaused {
-                            Text("冻结帧").foregroundStyle(.orange)
+                            Text("凍結幀").foregroundStyle(.orange)
                         } else if !isStreaming, motion != nil {
-                            Text("最后一帧 · 非实时").foregroundStyle(.secondary)
+                            Text("最後一幀 · 非實時").foregroundStyle(.secondary)
                         }
                     }
                     Grid(alignment: .leading, horizontalSpacing: 30, verticalSpacing: 10) {
@@ -34,10 +34,10 @@ struct MotionValuesView: View {
                             columnHeader("Pitch")
                             columnHeader("Roll")
                         }
-                        angleRow(isSimulated ? "模拟原始姿态" : "API 原始姿态", angles: motion?.raw.attitude)
+                        angleRow(isSimulated ? "模擬原始姿態" : "API 原始姿態", angles: motion?.raw.attitude)
                         angleRow(processedTitle, angles: motion?.displayAngles)
                     }
-                    Text("处理角按 Z-X-Y 分解（Yaw Z / Pitch X / Roll Y）；多轴旋转时不保证与 API 欧拉角逐项相同。数值不是绝对朝向或位置。")
+                    Text("處理角按 Z-X-Y 分解（Yaw Z / Pitch X / Roll Y）；多軸旋轉時不保證與 API 歐拉角逐項相同。數值不是絕對朝向或位置。")
                         .font(.caption).foregroundStyle(.secondary)
                 }
                 .padding(8)
@@ -45,35 +45,35 @@ struct MotionValuesView: View {
             HStack(alignment: .top, spacing: 14) {
                 GroupBox {
                     VStack(alignment: .leading, spacing: 12) {
-                        Text("运动向量").font(.headline)
+                        Text("運動向量").font(.headline)
                         Grid(alignment: .leading, horizontalSpacing: 18, verticalSpacing: 10) {
                             GridRow {
-                                Text(isSimulated ? "模拟原始数据" : "API 原始数据").font(.caption).foregroundStyle(.secondary)
+                                Text(isSimulated ? "模擬原始數據" : "API 原始數據").font(.caption).foregroundStyle(.secondary)
                                 columnHeader("X")
                                 columnHeader("Y")
                                 columnHeader("Z")
                             }
                             vectorRow("角速度 · rad/s", vector: motion?.raw.rotationRate)
-                            vectorRow("用户加速度 · g", vector: motion?.raw.userAcceleration)
+                            vectorRow("用戶加速度 · g", vector: motion?.raw.userAcceleration)
                             vectorRow("重力 · g", vector: motion?.raw.gravity)
                         }
                         Divider()
                         Grid(alignment: .leading, horizontalSpacing: 18, verticalSpacing: 10) {
                             GridRow {
-                                Text(smoothingEnabled ? "平滑向量" : "处理向量（未平滑）").font(.caption).foregroundStyle(.secondary)
+                                Text(smoothingEnabled ? "平滑向量" : "處理向量（未平滑）").font(.caption).foregroundStyle(.secondary)
                                 columnHeader("X")
                                 columnHeader("Y")
                                 columnHeader("Z")
                             }
                             vectorRow("角速度 · rad/s", vector: motion?.smoothedRotationRate)
-                            vectorRow("用户加速度 · g", vector: motion?.smoothedUserAcceleration)
+                            vectorRow("用戶加速度 · g", vector: motion?.smoothedUserAcceleration)
                         }
                     }
                     .padding(8)
                 }
                 GroupBox {
                     VStack(alignment: .leading, spacing: 10) {
-                        Text("四元数与时间戳").font(.headline)
+                        Text("四元數與時間戳").font(.headline)
                         Grid(alignment: .leading, horizontalSpacing: 16, verticalSpacing: 5) {
                             quaternionRow("x", motion?.raw.quaternion.x)
                             quaternionRow("y", motion?.raw.quaternion.y)
@@ -81,7 +81,7 @@ struct MotionValuesView: View {
                             quaternionRow("w", motion?.raw.quaternion.w)
                         }
                         Divider()
-                        Text("采样时间戳（启动后秒数）")
+                        Text("採樣時間戳（啓動後秒數）")
                             .font(.caption).foregroundStyle(.secondary)
                         Text(DisplayFormatting.number(motion?.raw.timestamp, digits: 4))
                             .monospacedDigit().textSelection(.enabled)
