@@ -13,7 +13,7 @@ struct StatusPanel: View {
 
     private var frequency: String {
         guard snapshot.phase == .streaming else { return "—" }
-        guard let hertz = snapshot.latest?.measuredFrequency else { return "测量中" }
+        guard let hertz = snapshot.latest?.measuredFrequency else { return "測量中" }
         return DisplayFormatting.number(hertz, digits: 1) + " Hz"
     }
 
@@ -21,18 +21,18 @@ struct StatusPanel: View {
         GroupBox {
             VStack(alignment: .leading, spacing: 14) {
                 HStack(alignment: .top, spacing: 24) {
-                    statusItem("运动数据可用", snapshot.availability.isAvailable ? "是" : "否")
-                    statusItem("运动权限", snapshot.source == .simulation ? "模拟无需权限" : snapshot.availability.authorization.title)
-                    statusItem("连接状态", snapshot.source == .simulation ? "模拟数据源" : snapshot.availability.connection.title)
-                    statusItem("实际更新频率", frequency)
+                    statusItem("運動數據可用", snapshot.availability.isAvailable ? "是" : "否")
+                    statusItem("運動權限", snapshot.source == .simulation ? "模擬無需權限" : snapshot.availability.authorization.title)
+                    statusItem("連接狀態", snapshot.source == .simulation ? "模擬數據源" : snapshot.availability.connection.title)
+                    statusItem("實際更新頻率", frequency)
                 }
                 Divider()
                 HStack(alignment: .top, spacing: 24) {
-                    statusItem("最近收帧时间", DisplayFormatting.receipt(snapshot.lastReceivedAt))
-                    statusItem("距最近一帧", age)
-                    statusItem("已接受 / 已拒绝", "\(snapshot.acceptedCount) / \(snapshot.rejectedCount)")
-                    statusItem("连续性重置 / 缓冲丢弃", "\(snapshot.discontinuityCount) / \(snapshot.ingressDroppedCount + snapshot.subscriberDroppedCount)")
-                        .help("中断：数据连续性重置。缓冲丢弃：输入 \(snapshot.ingressDroppedCount)，订阅者 \(snapshot.subscriberDroppedCount)。")
+                    statusItem("最近收幀時間", DisplayFormatting.receipt(snapshot.lastReceivedAt))
+                    statusItem("距最近一幀", age)
+                    statusItem("已接受 / 已拒絕", "\(snapshot.acceptedCount) / \(snapshot.rejectedCount)")
+                    statusItem("連續性重置 / 緩衝丟棄", "\(snapshot.discontinuityCount) / \(snapshot.ingressDroppedCount + snapshot.subscriberDroppedCount)")
+                        .help("中斷：數據連續性重置。緩衝丟棄：輸入 \(snapshot.ingressDroppedCount)，訂閱者 \(snapshot.subscriberDroppedCount)。")
                 }
             }
             .padding(8)

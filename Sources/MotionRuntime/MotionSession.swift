@@ -67,7 +67,7 @@ public actor MotionSession {
         state.smoothingEnabled = smoothing
         state.isRequested = true
         state.phase = .starting
-        state.message = "正在等待首个有效样本…"
+        state.message = "正在等待首個有效樣本…"
         processor.reset()
         processor.smoothingTimeConstant = smoothing ? 0.08 : 0
         continuityLost = false
@@ -101,7 +101,7 @@ public actor MotionSession {
         watchdogTask = nil
         state.isRequested = false
         state.phase = .stopped
-        state.message = "采集已停止；保留最后一帧供检查。"
+        state.message = "採集已停止；保留最後一幀供檢查。"
         loseContinuity()
         if let source { await stopSource(source) }
     }
@@ -125,10 +125,10 @@ public actor MotionSession {
               let received = state.lastReceivedUptime,
               ProcessInfo.processInfo.systemUptime - received <= timing.interruptionTimeout,
               processor.calibrate() else {
-            state.calibrationMessage = "校准需要正在接收的有效样本。"
+            state.calibrationMessage = "校準需要正在接收的有效樣本。"
             return false
         }
-        state.calibrationMessage = "已将最近有效姿态设为参考；下一帧显示相对姿态。"
+        state.calibrationMessage = "已將最近有效姿態設為參考；下一幀顯示相對姿態。"
         state.calibrationID = processor.calibrationID
         return true
     }
@@ -136,7 +136,7 @@ public actor MotionSession {
     public func clearCalibration() {
         processor.clearCalibration()
         state.calibrationID = nil
-        state.calibrationMessage = "请自然看向屏幕并重新校准中立姿态。"
+        state.calibrationMessage = "請自然看向屏幕並重新校準中立姿態。"
     }
 
     public func currentCalibrationID() -> UUID? { state.calibrationID }
@@ -215,7 +215,7 @@ public actor MotionSession {
         lastAvailabilityCheckUptime = ProcessInfo.processInfo.systemUptime
         if availability.authorization == .denied || availability.authorization == .restricted {
             state.phase = .permissionDenied
-            state.message = "运动权限被拒绝或受系统限制。修改权限后重新开始采集。"
+            state.message = "運動權限被拒絕或受系統限制。修改權限後重新開始採集。"
             state.lastError = state.message
             state.isRequested = false
             return
@@ -248,7 +248,7 @@ public actor MotionSession {
                 return
             }
             if processor.discontinuityCount > previousDiscontinuities {
-                state.calibrationMessage = "采样时间出现间隔，参考姿态已清除；请重新校准。"
+                state.calibrationMessage = "採樣時間出現間隔，參考姿態已清除；請重新校準。"
             }
             continuityLost = false
             state.latest = processed
@@ -266,16 +266,16 @@ public actor MotionSession {
             state.availability.connection = connection
             if connection == .disconnected {
                 state.phase = .waiting
-                state.message = "耳机已断开，等待重新连接。"
+                state.message = "耳機已斷開，等待重新連接。"
                 loseContinuity()
             } else if connection == .connected, state.phase != .streaming {
                 state.phase = .starting
-                state.message = "耳机已连接，等待运动权限与有效数据。"
+                state.message = "耳機已連接，等待運動權限與有效數據。"
             }
         case .failure(let message):
             state.lastError = message
             state.phase = .failed
-            state.message = "采集回调异常；将检查权限与连接并重试。"
+            state.message = "採集回調異常；將檢查權限與連接並重試。"
             loseContinuity()
         }
     }
@@ -283,7 +283,7 @@ public actor MotionSession {
     private func streamEnded(generation token: Int, attempt currentAttempt: Int) {
         guard generation == token, attempt == currentAttempt, state.isRequested else { return }
         state.phase = .interrupted
-        state.message = "数据流已结束，等待重试。"
+        state.message = "數據流已結束，等待重試。"
         loseContinuity()
     }
 
@@ -295,7 +295,7 @@ public actor MotionSession {
         lastAvailabilityCheckUptime = ProcessInfo.processInfo.systemUptime
         if availability.authorization == .denied || availability.authorization == .restricted {
             state.phase = .permissionDenied
-            state.message = "运动权限被拒绝或受限制；修改系统权限后重新开始。"
+            state.message = "運動權限被拒絕或受限制；修改系統權限後重新開始。"
             state.lastError = state.message
             state.isRequested = false
             loseContinuity()
@@ -310,8 +310,8 @@ public actor MotionSession {
             if state.phase == .streaming || state.phase == .starting {
                 state.phase = state.lastReceivedUptime == nil ? .waiting : .interrupted
                 state.message = state.lastReceivedUptime == nil
-                    ? "尚未收到有效数据。请连接并佩戴兼容耳机，确认当前连接到这台 Mac。"
-                    : "超过 \(timing.interruptionTimeout.formatted()) 秒没有有效数据；参考姿态已清除。"
+                    ? "尚未收到有效數據。請連接並佩戴兼容耳機，確認當前連接到這台 Mac。"
+                    : "超過 \(timing.interruptionTimeout.formatted()) 秒沒有有效數據；參考姿態已清除。"
                 loseContinuity()
             }
         }
@@ -320,7 +320,7 @@ public actor MotionSession {
         // take longer than our normal recovery interval.
         if availability.authorization == .notDetermined {
             if state.phase != .streaming {
-                state.message = "等待运动权限或首个有效样本；请佩戴耳机并检查系统权限提示。"
+                state.message = "等待運動權限或首個有效樣本；請佩戴耳機並檢查系統權限提示。"
             }
             return
         }
@@ -336,7 +336,7 @@ public actor MotionSession {
         guard !continuityLost else { return }
         continuityLost = true
         processor.resetContinuity()
-        state.calibrationMessage = "连续性已重置；恢复数据后请重新校准。"
+        state.calibrationMessage = "連續性已重置；恢復數據後請重新校準。"
         updateCounters()
     }
 

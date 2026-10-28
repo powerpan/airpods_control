@@ -5,7 +5,7 @@ import SwiftUI
 @MainActor
 @Observable
 final class PrivacyOverlayPresentation {
-    var status = "屏幕内容已被视觉遮挡。"
+    var status = "屏幕內容已被視覺遮擋。"
     var foregroundVisible = false
 }
 
@@ -47,7 +47,7 @@ struct PrivacyOverlayView: View {
                 classicContent
             }
             keyboardHint
-            Text("视觉遮挡，不是系统锁屏")
+            Text("視覺遮擋，不是系統鎖屏")
                 .font(.system(size: 11))
                 .foregroundStyle(.secondary)
                 .padding(.top, 5)
@@ -124,12 +124,12 @@ struct PrivacyOverlayView: View {
 
     private var dismissButton: some View {
         Button(action: onDismiss) {
-            Label("解除遮挡", systemImage: "arrow.uturn.backward")
+            Label("解除遮擋", systemImage: "arrow.uturn.backward")
                 .font(.system(size: 14, weight: .medium))
                 .padding(.horizontal, 18)
                 .padding(.vertical, 5)
         }
-        .help("解除所有显示器的遮挡。也可按 Escape 或 ⇧⌘P。")
+        .help("解除所有顯示器的遮擋。也可按 Escape 或 ⇧⌘P。")
         .accessibilityIdentifier("privacy-overlay-dismiss")
     }
 

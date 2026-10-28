@@ -10,7 +10,7 @@ struct FeatureSettingsView: View {
             privacySettings
                 .tabItem { Label("隱私保護", systemImage: "eye.slash") }
             exerciseSettings
-                .tabItem { Label("颈部活动", systemImage: "figure.mind.and.body") }
+                .tabItem { Label("頸部活動", systemImage: "figure.mind.and.body") }
         }
         .padding(18)
         .frame(width: 590, height: 590)
@@ -81,39 +81,39 @@ struct FeatureSettingsView: View {
     private var exerciseSettings: some View {
         Form {
             Section {
-                Text("跟随面向你的 3D 模型做镜像动作。超过设定幅度并保持，再返回中立进入下一步；不需要精确对准角度。")
+                Text("跟隨面向你的 3D 模型做鏡像動作。超過設定幅度並保持，再返回中立進入下一步；不需要精確對準角度。")
                     .font(.callout).foregroundStyle(.secondary)
             } header: {
-                Text("舒适范围")
+                Text("舒適範圍")
             }
 
             Section {
-                SettingSlider(label: "左右转头", value: exerciseBinding(\.yawAngle), range: 10...35, step: 1, unit: "°")
-                SettingSlider(label: "左右侧倾", value: exerciseBinding(\.tiltAngle), range: 5...20, step: 1, unit: "°")
-                SettingSlider(label: "轻微低头", value: exerciseBinding(\.nodAngle), range: 5...20, step: 1, unit: "°")
-                SettingSlider(label: "达幅保持", value: exerciseBinding(\.stableHold), range: 0.3...2, step: 0.1, unit: "秒", fractionDigits: 1)
+                SettingSlider(label: "左右轉頭", value: exerciseBinding(\.yawAngle), range: 10...35, step: 1, unit: "°")
+                SettingSlider(label: "左右側傾", value: exerciseBinding(\.tiltAngle), range: 5...20, step: 1, unit: "°")
+                SettingSlider(label: "輕微低頭", value: exerciseBinding(\.nodAngle), range: 5...20, step: 1, unit: "°")
+                SettingSlider(label: "達幅保持", value: exerciseBinding(\.stableHold), range: 0.3...2, step: 0.1, unit: "秒", fractionDigits: 1)
                 SettingSlider(label: "返回保持", value: exerciseBinding(\.returnHold), range: 0.3...2, step: 0.1, unit: "秒", fractionDigits: 1)
             }
             .disabled(exerciseSettingsLocked)
 
             Section {
-                Toggle("反转转头方向", isOn: signBinding(\.yawSign))
-                Toggle("反转侧倾方向", isOn: signBinding(\.rollSign))
-                Toggle("反转低头方向", isOn: signBinding(\.pitchSign))
-                Text("模型面向你：模型向它的右侧转，你向左转。校准后小幅核对；若动作幅度被识别为相反方向，再反转相应轴。")
+                Toggle("反轉轉頭方向", isOn: signBinding(\.yawSign))
+                Toggle("反轉側傾方向", isOn: signBinding(\.rollSign))
+                Toggle("反轉低頭方向", isOn: signBinding(\.pitchSign))
+                Text("模型面向你：模型向它的右側轉，你向左轉。校準後小幅核對；若動作幅度被識別為相反方向，再反轉相應軸。")
                     .font(.caption).foregroundStyle(.secondary)
             } header: {
-                Text("方向校验")
+                Text("方向校驗")
             }
             .disabled(exerciseSettingsLocked)
 
             if exerciseSettingsLocked {
-                Text("活动进行中。请先结束活动，再调整角度或方向，避免目标在动作中改变。")
+                Text("活動進行中。請先結束活動，再調整角度或方向，避免目標在動作中改變。")
                     .font(.caption).foregroundStyle(.secondary)
             }
 
             Section {
-                Text("疼痛、眩晕或不适时立即停止。这是轻缓活动引导，不用于医疗诊断、治疗或康复。")
+                Text("疼痛、眩暈或不適時立即停止。這是輕緩活動引導，不用於醫療診斷、治療或康復。")
                     .font(.caption).foregroundStyle(.secondary)
             }
         }
@@ -166,17 +166,35 @@ private struct SettingSlider: View {
     let step: Double
     let unit: String
     var fractionDigits = 0
+    // A drag edits this draft; the setting (saved, sent to the session, and
+    // re-arming detection) is committed once on release. Keyboard and
+    // VoiceOver adjustments have no drag and commit immediately.
+    @State private var draft: Double?
+
+    private var shown: Double { draft ?? value }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
             HStack {
                 Text(label)
                 Spacer()
-                Text("\(value.formatted(.number.precision(.fractionLength(fractionDigits))))\(unit)")
+                Text("\(shown.formatted(.number.precision(.fractionLength(fractionDigits))))\(unit)")
                     .monospacedDigit().foregroundStyle(.secondary)
             }
-            Slider(value: $value, in: range, step: step)
-                .accessibilityLabel(label)
+            Slider(value: Binding(
+                get: { shown },
+                set: { newValue in
+                    if draft != nil { draft = newValue } else { value = newValue }
+                }
+            ), in: range, step: step) { editing in
+                if editing {
+                    draft = value
+                } else if let final = draft {
+                    draft = nil
+                    if final != value { value = final }
+                }
+            }
+            .accessibilityLabel(label)
         }
         .padding(.vertical, 3)
     }

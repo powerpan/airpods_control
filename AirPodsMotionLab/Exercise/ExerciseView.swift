@@ -32,7 +32,7 @@ struct ExerciseView: View {
                         )
                         .frame(height: 240)
                         .padding(.horizontal, 20)
-                        Text("镜像跟随 · 模型向它的右侧转，你向左转")
+                        Text("鏡像跟隨 · 模型向它的右側轉，你向左轉")
                             .font(.caption).foregroundStyle(.secondary)
                             .padding(.bottom, 8)
                         detailLine
@@ -49,7 +49,7 @@ struct ExerciseView: View {
                         .padding(.top, 12)
                 }
                 if phase == .completed {
-                    Button("结束并返回", action: finish)
+                    Button("結束並返回", action: finish)
                         .buttonStyle(.borderedProminent)
                         .tint(.teal)
                         .controlSize(.large)
@@ -74,9 +74,9 @@ struct ExerciseView: View {
         .toolbar {
             ToolbarItem(placement: .automatic) {
                 SettingsLink {
-                    Label("设置", systemImage: "slider.horizontal.3")
+                    Label("設置", systemImage: "slider.horizontal.3")
                 }
-                .help("调整舒适角度范围与方向")
+                .help("調整舒適角度範圍與方向")
             }
         }
     }
@@ -88,12 +88,12 @@ struct ExerciseView: View {
                     .font(.system(size: 11, weight: .semibold, design: .rounded))
                     .tracking(2.3)
                     .foregroundStyle(.secondary)
-                Text("给颈部一点活动空间")
+                Text("給頸部一點活動空間")
                     .font(.system(size: 25, weight: .medium, design: .rounded))
             }
             Spacer()
             VStack(alignment: .trailing, spacing: 7) {
-                Label(isSimulated ? "模拟姿态" : (store.snapshot.sensorReady ? "姿态已连接" : "等待 AirPods"),
+                Label(isSimulated ? "模擬姿態" : (store.snapshot.sensorReady ? "姿態已連接" : "等待 AirPods"),
                       systemImage: isSimulated ? "waveform.path" : "airpodspro")
                     .font(.caption.weight(.medium))
                     .foregroundStyle(store.snapshot.sensorReady ? Color.teal : Color.secondary)
@@ -121,7 +121,7 @@ struct ExerciseView: View {
         }
         .padding(.vertical, 14)
         .background(.quaternary.opacity(0.35), in: RoundedRectangle(cornerRadius: 12))
-        .accessibilityLabel("动作流程：左转、右转、左侧倾、右侧倾、轻微低头")
+        .accessibilityLabel("動作流程：左轉、右轉、左側傾、右側傾、輕微低頭")
     }
 
     private var instruction: some View {
@@ -143,16 +143,16 @@ struct ExerciseView: View {
         VStack(spacing: 13) {
             if !isPreparing {
                 HStack(spacing: 24) {
-                    metric(phase == .returning ? "偏离中立" : "当前动作幅度", value: measuredLabel)
-                    metric(phase == .returning ? "返回范围" : "设定幅度", value: thresholdLabel)
-                    metric("活动用时", value: duration(exercise.elapsed))
+                    metric(phase == .returning ? "偏離中立" : "當前動作幅度", value: measuredLabel)
+                    metric(phase == .returning ? "返回範圍" : "設定幅度", value: thresholdLabel)
+                    metric("活動用時", value: duration(exercise.elapsed))
                 }
                 .frame(maxWidth: .infinity)
 
                 HStack(spacing: 18) {
-                    poseValue("转头", angle: exercise.currentPose.map { $0.yaw * store.exerciseSettings.yawSign })
-                    poseValue("侧倾", angle: exercise.currentPose.map { $0.roll * store.exerciseSettings.rollSign })
-                    poseValue("低头", angle: exercise.currentPose.map { $0.pitch * store.exerciseSettings.pitchSign })
+                    poseValue("轉頭", angle: exercise.currentPose.map { $0.yaw * store.exerciseSettings.yawSign })
+                    poseValue("側傾", angle: exercise.currentPose.map { $0.roll * store.exerciseSettings.rollSign })
+                    poseValue("低頭", angle: exercise.currentPose.map { $0.pitch * store.exerciseSettings.pitchSign })
                 }
                 .font(.caption).foregroundStyle(.secondary)
             }
@@ -173,7 +173,7 @@ struct ExerciseView: View {
                 .foregroundStyle(phase == .signalLost ? Color.orange : Color.primary)
                 .multilineTextAlignment(.center)
             HStack {
-                Text(phase == .returning ? "返回中立 · 保持" : "达到幅度 · 保持")
+                Text(phase == .returning ? "返回中立 · 保持" : "達到幅度 · 保持")
                 Spacer()
                 Text("\(Int((min(1, max(0, exercise.progress)) * 100).rounded()))%")
                     .monospacedDigit()
@@ -181,10 +181,10 @@ struct ExerciseView: View {
             .font(.caption.weight(.medium))
             ProgressView(value: min(1, max(0, exercise.progress)), total: 1)
                 .tint(.teal)
-                .accessibilityLabel("持续保持进度")
+                .accessibilityLabel("持續保持進度")
             Text(phase == .returning
-                 ? "回到自然正视姿态，稍作停留后进入下一步。"
-                 : "沿示范方向达到设定幅度后，连续保持即可；无需精确对准角度。")
+                 ? "回到自然正視姿態，稍作停留後進入下一步。"
+                 : "沿示範方向達到設定幅度後，連續保持即可；無需精確對準角度。")
                 .font(.caption2).foregroundStyle(.secondary)
                 .multilineTextAlignment(.center)
         }
@@ -194,30 +194,30 @@ struct ExerciseView: View {
     private var controls: some View {
         HStack(spacing: 12) {
             if phase == .idle {
-                Button("开始一组活动", action: store.startExercise)
+                Button("開始一組活動", action: store.startExercise)
                     .buttonStyle(.borderedProminent)
             } else if phase == .awaitingCalibration || phase == .signalLost {
-                Button("校准并开始", action: store.calibrateExercise)
+                Button("校準並開始", action: store.calibrateExercise)
                     .buttonStyle(.borderedProminent)
                     .disabled(!store.snapshot.sensorReady)
-                    .help("自然坐好并看向屏幕，将此刻作为舒适的中立位置")
+                    .help("自然坐好並看向屏幕，將此刻作為舒適的中立位置")
             } else if phase == .paused {
-                Button("继续", action: store.resumeExercise)
+                Button("繼續", action: store.resumeExercise)
                     .buttonStyle(.borderedProminent)
                     .disabled(!store.snapshot.sensorReady)
             } else {
-                Button("暂停", action: store.pauseExercise)
+                Button("暫停", action: store.pauseExercise)
                     .buttonStyle(.bordered)
             }
 
             if !isPreparing {
-                Button("跳过", action: store.skipExercise)
+                Button("跳過", action: store.skipExercise)
                     .disabled(phase == .signalLost)
-                Button("重新校准", action: store.calibrateExercise)
+                Button("重新校準", action: store.calibrateExercise)
                     .disabled(!store.snapshot.sensorReady)
             }
             Spacer(minLength: 24)
-            Button("结束活动", action: finish)
+            Button("結束活動", action: finish)
                 .keyboardShortcut(.escape, modifiers: [])
         }
         .controlSize(.large)
@@ -237,18 +237,18 @@ struct ExerciseView: View {
             }
             .padding(.top, 35)
             VStack(spacing: 10) {
-                Text(exercise.completedCount == 5 ? "这一组，完成了" : "这一组，结束了")
+                Text(exercise.completedCount == 5 ? "這一組，完成了" : "這一組，結束了")
                     .font(.system(size: 30, weight: .medium, design: .rounded))
                 Text("回到自然、舒服的位置。")
                     .foregroundStyle(.secondary)
             }
             HStack(spacing: 38) {
-                metric("完成动作", value: "\(exercise.completedCount)")
-                metric("跳过动作", value: "\(exercise.skippedCount)")
-                metric("活动用时", value: duration(exercise.elapsed))
+                metric("完成動作", value: "\(exercise.completedCount)")
+                metric("跳過動作", value: "\(exercise.skippedCount)")
+                metric("活動用時", value: duration(exercise.elapsed))
             }
             .padding(.vertical, 14)
-            Text("回到工作位置后，请重新校准隐私检测的中立方向。")
+            Text("回到工作位置後，請重新校準隱私檢測的中立方向。")
                 .font(.caption).foregroundStyle(.secondary)
                 .multilineTextAlignment(.center)
         }
@@ -262,18 +262,18 @@ struct ExerciseView: View {
             HStack(alignment: .top, spacing: 9) {
                 Image(systemName: "leaf")
                     .foregroundStyle(.teal)
-                Text("只在舒适范围内缓慢活动；疼痛或眩晕时立即停止。这是轻缓活动引导，不是医疗或康复训练。")
+                Text("只在舒適範圍內緩慢活動；疼痛或眩暈時立即停止。這是輕緩活動引導，不是醫療或康復訓練。")
                     .foregroundStyle(.secondary)
                 Spacer(minLength: 0)
             }
             .font(.caption)
             .padding(.top, 6)
             if store.snapshot.automaticSuspended {
-                Text("活动期间，隐私保护的自动姿态触发已暂停。")
+                Text("活動期間，隱私保護的自動姿態觸發已暫停。")
                     .font(.caption2).foregroundStyle(.tertiary)
             }
             if isSimulated {
-                Label("当前为模拟数据，活动结果不代表真实动作。", systemImage: "waveform.path")
+                Label("當前為模擬數據，活動結果不代表真實動作。", systemImage: "waveform.path")
                     .font(.caption).foregroundStyle(.secondary)
             }
         }
@@ -282,28 +282,28 @@ struct ExerciseView: View {
     private var instructionTitle: String {
         switch phase {
         case .idle, .awaitingCalibration: "先找到舒服的中立位置"
-        case .approaching: exercise.currentStep?.title ?? "缓慢活动"
-        case .returning: "慢慢回到中间"
-        case .paused: "休息一下，随时继续"
-        case .signalLost: "等待头部姿态恢复"
-        case .completed: "这一组，完成了"
+        case .approaching: exercise.currentStep?.title ?? "緩慢活動"
+        case .returning: "慢慢回到中間"
+        case .paused: "休息一下，隨時繼續"
+        case .signalLost: "等待頭部姿態恢復"
+        case .completed: "這一組，完成了"
         }
     }
 
     private var instructionDetail: String {
         switch phase {
         case .idle, .awaitingCalibration:
-            "自然坐好，面向屏幕。校准后，缓慢跟随面向你的模型做镜像动作。"
+            "自然坐好，面向屏幕。校準後，緩慢跟隨面向你的模型做鏡像動作。"
         case .approaching:
-            "在舒适范围内达到 \(Int(targetRange.rounded()))°，保持 \(store.exerciseSettings.stableHold.formatted(.number.precision(.fractionLength(1)))) 秒。模型会停下来等你。"
+            "在舒適範圍內達到 \(Int(targetRange.rounded()))°，保持 \(store.exerciseSettings.stableHold.formatted(.number.precision(.fractionLength(1)))) 秒。模型會停下來等你。"
         case .returning:
-            "跟随模型回到自然正视位置，放松并稍作停留，再进入下一个动作。"
+            "跟隨模型回到自然正視位置，放鬆並稍作停留，再進入下一個動作。"
         case .paused:
-            "当前动作的保持进度已暂停。继续时仍需通过实际姿态完成动作。"
+            "當前動作的保持進度已暫停。繼續時仍需通過實際姿態完成動作。"
         case .signalLost:
-            "动作判定已暂停。确认耳机连接后，面向屏幕重新校准。"
+            "動作判定已暫停。確認耳機連接後，面向屏幕重新校準。"
         case .completed:
-            "你可以结束活动，回到工作。"
+            "你可以結束活動，回到工作。"
         }
     }
 
@@ -375,11 +375,11 @@ struct ExerciseView: View {
 
     private func shortTitle(_ step: ExerciseStep) -> String {
         switch step {
-        case .turnLeft: "左转"
-        case .turnRight: "右转"
-        case .tiltLeft: "左侧倾"
-        case .tiltRight: "右侧倾"
-        case .nod: "轻微低头"
+        case .turnLeft: "左轉"
+        case .turnRight: "右轉"
+        case .tiltLeft: "左側傾"
+        case .tiltRight: "右側傾"
+        case .nod: "輕微低頭"
         }
     }
 

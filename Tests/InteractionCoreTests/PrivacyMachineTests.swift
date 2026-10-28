@@ -93,7 +93,7 @@ private func shielded() -> PrivacyMachine {
 
 @Test func disconnectedShieldRemainsLatchedAfterFreshDataAndNewCalibration() {
     var machine = shielded()
-    machine.invalidatePose(reason: "断开")
+    machine.invalidatePose(reason: "斷開")
     #expect(machine.isShielded)
     #expect(machine.requiresManualReveal)
     let newReference = UUID()

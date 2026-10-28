@@ -28,7 +28,7 @@ struct HeadDemonstrationView: NSViewRepresentable {
         view.isPlaying = true
         view.scene = context.coordinator.scene
         view.pointOfView = context.coordinator.camera
-        view.setAccessibilityLabel("面向你的三维头部示范模型")
+        view.setAccessibilityLabel("面向你的三維頭部示範模型")
         view.setAccessibilityRole(.image)
         return view
     }
@@ -39,7 +39,7 @@ struct HeadDemonstrationView: NSViewRepresentable {
             paused: isPaused, reduceMotion: reduceMotion,
             isDark: colorScheme == .dark
         )
-        view.setAccessibilityValue("镜像示范：转头 \(Int(yaw.rounded())) 度，低头 \(Int(pitch.rounded())) 度，侧倾 \(Int(roll.rounded())) 度")
+        view.setAccessibilityValue("鏡像示範：轉頭 \(Int(yaw.rounded())) 度，低頭 \(Int(pitch.rounded())) 度，側傾 \(Int(roll.rounded())) 度")
     }
 
     static func dismantleNSView(_ view: SCNView, coordinator: Coordinator) {

@@ -18,17 +18,17 @@ struct AirPodsMotionLabApp: App {
         .defaultSize(width: 1040, height: 900)
         .windowResizability(.contentMinSize)
         .commands {
-            CommandMenu("采集") {
-                Button("开始采集", action: model.motion.start)
+            CommandMenu("採集") {
+                Button("開始採集", action: model.motion.start)
                     .keyboardShortcut("r", modifiers: [.command])
                     .disabled(!model.motion.canStart)
-                Button("停止采集", action: model.motion.stop)
+                Button("停止採集", action: model.motion.stop)
                     .keyboardShortcut(".", modifiers: [.command])
                     .disabled(!model.motion.canStop)
                 Divider()
-                Button(model.motion.isDisplayPaused ? "恢复显示" : "暂停显示", action: model.motion.toggleDisplayPause)
-                    .keyboardShortcut("p", modifiers: [.command, .shift])
-                Button("重新校准", action: model.motion.calibrate)
+                Button(model.motion.isDisplayPaused ? "恢復顯示" : "暫停顯示", action: model.motion.toggleDisplayPause)
+                    .keyboardShortcut("p", modifiers: [.command, .option])
+                Button("重新校準", action: model.motion.calibrate)
                     .keyboardShortcut("k", modifiers: [.command])
                     .disabled(!model.motion.canCalibrate)
             }
@@ -38,7 +38,8 @@ struct AirPodsMotionLabApp: App {
             FeatureMenu(motion: model.motion, features: model.features)
                 .task { await activateModel() }
         } label: {
-            Label("AirPods Motion Lab", systemImage: model.features.snapshot.privacy.isShielded ? "eye.slash.fill" : "airpodspro")
+            Label("AirPods Motion Lab · \(model.features.privacyIndicator.title)",
+                  systemImage: model.features.privacyIndicator.symbol)
                 .task { await activateModel() }
         }
         .menuBarExtraStyle(.menu)

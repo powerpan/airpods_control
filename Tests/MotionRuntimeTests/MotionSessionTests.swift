@@ -138,8 +138,8 @@ func disconnectInvalidatesCalibrationAndAllowsANewTimestampEpoch() async {
     #expect(await eventually { await session.snapshot().phase == .starting })
     let reconnected = await session.snapshot()
     #expect(reconnected.availability.connection == .connected)
-    #expect(reconnected.message?.contains("已连接") == true)
-    #expect(reconnected.message?.contains("已断开") == false)
+    #expect(reconnected.message?.contains("已連接") == true)
+    #expect(reconnected.message?.contains("已斷開") == false)
     source.send(.sample(sample(1, yaw: -0.2)))
     #expect(await eventually { await session.snapshot().acceptedCount == 3 })
     let resumed = await session.snapshot()
@@ -377,8 +377,8 @@ func sensorGapBelowTheWatchdogTimeoutUpdatesTheCalibrationMessage() async {
     #expect(recovered.latest?.measuredFrequency == nil)
     #expect(recovered.discontinuityCount == 1)
     #expect(recovered.calibrationMessage != calibratedMessage)
-    #expect(recovered.calibrationMessage?.contains("采样时间") == true)
-    #expect(recovered.calibrationMessage?.contains("重新校准") == true)
+    #expect(recovered.calibrationMessage?.contains("採樣時間") == true)
+    #expect(recovered.calibrationMessage?.contains("重新校準") == true)
     #expect(source.startCount == 1)
     await session.shutdown()
 }
@@ -401,7 +401,7 @@ func initialPermissionWaitDoesNotRestartTheStreamAndAuthorizationResumesRecovery
     #expect(pending.isRequested)
     #expect(pending.phase == .waiting)
     #expect(pending.availability.authorization == .notDetermined)
-    #expect(pending.message?.contains("运动权限") == true)
+    #expect(pending.message?.contains("運動權限") == true)
 
     source.availability.authorization = .authorized
     #expect(await eventually { source.startCount >= 2 })

@@ -12,18 +12,18 @@ struct AttitudeChartView: View {
         GroupBox {
             VStack(alignment: .leading, spacing: 10) {
                 HStack {
-                    Text("姿态变化").font(.headline)
+                    Text("姿態變化").font(.headline)
                     Spacer()
-                    Text("最近 10 秒 · \(isCalibrated ? "相对姿态" : "未校准姿态") · 显示约 10 Hz")
+                    Text("最近 10 秒 · \(isCalibrated ? "相對姿態" : "未校準姿態") · 顯示約 10 Hz")
                         .font(.caption).foregroundStyle(.secondary)
                 }
                 Chart(points) { point in
                     LineMark(
-                        x: .value("时间", point.timestamp),
+                        x: .value("時間", point.timestamp),
                         y: .value("角度", point.degrees),
-                        series: .value("连续片段", point.series)
+                        series: .value("連續片段", point.series)
                     )
-                    .foregroundStyle(by: .value("轴", point.axis))
+                    .foregroundStyle(by: .value("軸", point.axis))
                     .interpolationMethod(.linear)
                     .lineStyle(StrokeStyle(lineWidth: 1.7))
                 }
@@ -52,10 +52,10 @@ struct AttitudeChartView: View {
                 .frame(height: 170)
                 .overlay {
                     if points.isEmpty {
-                        Text("开始采集后显示曲线").foregroundStyle(.secondary)
+                        Text("開始採集後顯示曲線").foregroundStyle(.secondary)
                     }
                 }
-                .accessibilityLabel("Yaw、Pitch、Roll 最近十秒的处理姿态角曲线")
+                .accessibilityLabel("Yaw、Pitch、Roll 最近十秒的處理姿態角曲線")
             }
             .padding(8)
         }

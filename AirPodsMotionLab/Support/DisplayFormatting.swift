@@ -20,19 +20,19 @@ enum DisplayFormatting {
 }
 
 extension MotionSourceKind {
-    var title: String { self == .headphones ? "AirPods" : "模拟数据" }
+    var title: String { self == .headphones ? "AirPods" : "模擬數據" }
 }
 
 extension CapturePhase {
     var title: String {
         switch self {
-        case .idle: "待机"
-        case .starting: "正在启动"
-        case .waiting: "等待耳机"
-        case .streaming: "正在采集"
-        case .interrupted: "数据中断"
-        case .permissionDenied: "权限不足"
-        case .failed: "采集异常"
+        case .idle: "待機"
+        case .starting: "正在啓動"
+        case .waiting: "等待耳機"
+        case .streaming: "正在採集"
+        case .interrupted: "數據中斷"
+        case .permissionDenied: "權限不足"
+        case .failed: "採集異常"
         case .stopped: "已停止"
         }
     }
@@ -50,10 +50,10 @@ extension CapturePhase {
 extension MotionAuthorization {
     var title: String {
         switch self {
-        case .notDetermined: "尚未请求"
-        case .authorized: "已允许"
-        case .denied: "已拒绝"
-        case .restricted: "受系统限制"
+        case .notDetermined: "尚未請求"
+        case .authorized: "已允許"
+        case .denied: "已拒絕"
+        case .restricted: "受系統限制"
         case .unknown: "未知"
         }
     }
@@ -62,9 +62,9 @@ extension MotionAuthorization {
 extension MotionConnection {
     var title: String {
         switch self {
-        case .unknown: "尚未确认"
-        case .connected: "已连接"
-        case .disconnected: "已断开"
+        case .unknown: "尚未確認"
+        case .connected: "已連接"
+        case .disconnected: "已斷開"
         }
     }
 }

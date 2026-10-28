@@ -45,7 +45,7 @@ public final class HeadphoneMotionSource: MotionSource {
         self.sink = sink
         sink.yield(.availability(availability))
         guard Self.authorization != .denied, Self.authorization != .restricted else {
-            sink.yield(.failure("运动权限未获允许，请在系统设置中检查运动与健身权限。"))
+            sink.yield(.failure("運動權限未獲允許，請在系統設置中檢查運動與健身權限。"))
             return stream
         }
 
@@ -71,7 +71,7 @@ public final class HeadphoneMotionSource: MotionSource {
                 return
             }
             guard let motion else {
-                sink.yield(.failure("Core Motion 回调没有包含数据或错误。"))
+                sink.yield(.failure("Core Motion 回調沒有包含數據或錯誤。"))
                 return
             }
             let attitude = motion.attitude

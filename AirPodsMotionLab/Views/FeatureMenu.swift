@@ -10,7 +10,7 @@ struct FeatureMenu: View {
     var body: some View {
         Text("\(motion.snapshot.source.title) · \(motion.snapshot.phase.title)")
         if let rate = motion.snapshot.latest?.measuredFrequency, motion.snapshot.phase == .streaming {
-            Text("实时数据 \(rate, specifier: "%.1f") Hz")
+            Text("實時數據 \(rate, specifier: "%.1f") Hz")
         }
         Divider()
         Toggle("自動隱私保護", isOn: Binding(get: { features.privacyEnabled }, set: features.setPrivacyEnabled))
@@ -25,7 +25,7 @@ struct FeatureMenu: View {
         Button("校準屏幕中立方向", action: features.calibrateNeutral)
             .disabled(!features.snapshot.sensorReady || features.snapshot.privacy.isShielded || features.snapshot.exercise.isActive)
         Divider()
-        Button(features.snapshot.exercise.isActive ? "打开颈部活动" : "开始颈部活动") {
+        Button(features.snapshot.exercise.isActive ? "打開頸部活動" : "開始頸部活動") {
             features.startExercise()
             openWindow(id: "neck-exercise")
             NSApp.activate(ignoringOtherApps: true)
@@ -33,14 +33,14 @@ struct FeatureMenu: View {
         .disabled(features.snapshot.privacy.isShielded)
         if features.snapshot.automaticSuspended { Text("活動期間，轉頭與離座判定已暫停") }
         Divider()
-        Button("运动数据调试") {
+        Button("運動數據調試") {
             openWindow(id: "motion-lab")
             NSApp.activate(ignoringOtherApps: true)
         }
-        Button(motion.snapshot.isRequested ? "停止传感器采集" : "开始传感器采集") {
+        Button(motion.snapshot.isRequested ? "停止傳感器採集" : "開始傳感器採集") {
             if motion.snapshot.isRequested { motion.stop() } else { motion.start() }
         }
-        SettingsLink { Text("功能设置…") }
+        SettingsLink { Text("功能設置…") }
         Divider()
         Button("退出 AirPods Motion Lab") { NSApp.terminate(nil) }
             .keyboardShortcut("q")
