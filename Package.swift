@@ -11,7 +11,7 @@ let package = Package(
     ],
     targets: [
         .target(name: "MotionCore"),
-        .target(name: "InteractionCore"),
+        .target(name: "InteractionCore", dependencies: ["MotionCore"]),
         .target(name: "MotionRuntime", dependencies: ["MotionCore", "InteractionCore"]),
         .testTarget(name: "MotionCoreTests", dependencies: ["MotionCore"]),
         .testTarget(name: "InteractionCoreTests", dependencies: ["InteractionCore"]),

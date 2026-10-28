@@ -4,7 +4,7 @@
 
 ## 構建與運行
 
-- Apple Silicon Mac，macOS 14 或更新版本。姿態採集從 macOS 14 起可用，離座偵測需要 macOS 15 或更新版本及相容耳機；舊系統保留轉頭遮擋。工程當前明確構建 arm64。
+- Apple Silicon Mac，macOS 14 或更新版本。姿態採集從 macOS 14 起可用。工程當前明確構建 arm64。
 - Xcode 26 或更新版本（需要原生玻璃效果 API 的 SDK，舊版 macOS 在運行時使用材質回退）。最低系統版本尚未實機驗證。
 - 打開 `AirPodsMotionLab.xcodeproj`，選擇 **AirPodsMotionLab → My Mac**，按 ⌘R。
 - 使用本地 ad-hoc 簽名，不需要開發者賬號。未啓用 App Sandbox，不申請網絡、輔助功能、藍牙掃描或 Apple Events 權限；全局快捷鍵使用 Carbon `RegisterEventHotKey`，同樣不需要輔助功能權限。
@@ -35,15 +35,13 @@
 2. 正常看向工作屏幕，選擇 **校準屏幕中立方向**，保持正視片刻，等狀態顯示“正在留意頭部朝向”。
 3. 默認左右轉頭偏離至少 35°、連續 0.6 秒後遮擋；回到 20°以內並穩定 0.5 秒後恢復。觸發/恢復角度、持續時間可在 **功能設置 → 隱私保護** 調整。
 
-**離座偵測** 使用官方耳機活動識別。坐在書桌前的主動校準同時確認書桌基準；高置信度步行或跑步證據持續約 2.5 秒後，遮擋會保持到手動解除。原本因轉頭遮擋時只升級保持狀態，不重建覆蓋窗口。離座後停止行走、回到中立朝向或長時間靜止，都不會自動解除。API、權限或設備不支持時，設置中顯示原因並繼續原有轉頭邏輯。詳見 [離座偵測與保持遮擋](docs/departure-detection.md)。
-
 選擇 **立即遮擋所有屏幕**，或在任何應用中按全局快捷鍵 **⌃⌘P**，可以手動進入，不需要耳機數據。快捷鍵只會遮擋，不會解除遮擋；可在 **功能設置 → 隱私保護 → 背景運行** 關閉。若 ⌃⌘P 已被其他應用或系統快捷鍵佔用，設置頁會顯示未能註冊，此時只在菜單打開時可用。手動遮擋只會手動解除；回正頭部不會替你揭開。每屏都有 **解除遮擋** 按鈕，覆蓋窗口收到鍵盤輸入時也可按 **Esc** 或 **⇧⌘P**。這些是應用內解除方式，不是系統級全局快捷鍵；系統級的 ⌃⌘P 只負責遮擋。手動解除後，自動檢測要等回到中立並穩定後才重新就緒，避免剛退出就再次遮擋。
-
-解除離座遮擋視為主動確認返回；應用等待穩定姿態重新校準並冷卻後恢復判定。數據不足時會提示等待或使用現有手動校準入口。應用不會因在其他位置靜止而自行確認書桌基準。
 
 已遮擋時發生斷流、斷連或校準變化，會保留遮擋並要求手動解除；重連不會直接暴露內容。關閉自動檢測也不會自行揭開已有遮擋。短暫異常會清除判定中的保持時間，不會把中斷前後樣本拼成一個完整動作。
 
-**已就緒時遺失耳機資料即遮擋**（預設開啓，位於 **功能設置 → 隱私保護 → 耳機資料中斷**）：自動保護已就緒時，若耳機斷開、放回充電盒、離開藍牙範圍、資料流中斷或系統進入睡眠，應用會遮擋並保持到手動解除，而不是悄悄停止保護。斷開與睡眠立即遮擋；資料流停頓則先等待約 1 秒，期間收到有效校準資料就取消，避免藍牙短暫抖動也要手動解除。手動停止採集、退出應用、頸部活動期間，以及尚未校準或尚未回到中立方向時都不會觸發。關閉此設定後，資料中斷只會停止偵測並等待重新校準。舊版設定檔沒有此欄位時按開啓處理。
+**啟用資料中斷保護**（預設開啓，位於 **功能設置 → 隱私保護 → 耳機資料中斷**）：單純資料停滯先從最後一筆有效樣本起等待 **3 秒**。同一連線內、感測器與接收時鐘仍一致的資料在期限內恢復，會取消待遮擋、保留原校準，回到中立並穩定後繼續偵測。停滯前的觸發與恢復進度不會累加，超過 1 秒的停滯也會清除平滑與頻率歷史。
+
+明確斷連、資料來源錯誤或結束、系統睡眠，以及超過 3 秒仍未恢復，會遮擋並保持。裝置自動切換若造成 Core Motion 斷連通知，也走這條路徑；不推斷切換到了哪台裝置。恢復連線或資料不會自動揭開，請使用原有入口手動解除，再面向屏幕手動校準。時間戳跳變或來源重啟可能讓參考失效，不能為了取消遮擋沿用失效校準。手動停止採集、退出應用、頸部活動期間，以及尚未就緒時不新增遮擋。關閉此設定只停止新的資料中斷觸發，不解除已有遮擋。
 
 自動檢測開關控制的是隱私規則；要停止耳機數據採集，可另選菜單中的 **停止傳感器採集**。兩個功能和調試窗口共用採集會話，不各自開關一份傳感器。
 
@@ -63,7 +61,7 @@
 
 可以隨時暫停、繼續、跳過或結束。跳過單獨計數，不計為完成。斷流會暫停動作判定，恢復後按界面提示重新校準；保持時間不會跨過丟失的數據。本次“活動用時”統計有有效採樣的活動時間，不包括暫停和斷流，不是健康評分。
 
-活動期間暫停隱私保護的自動姿態觸發與離座判定，手動遮擋仍可用並會暫停活動。完成、提前結束或關閉活動窗口後，恢復原來的自動隱私檢測設置，但清除活動參考：**回到工作姿態後重新校準屏幕中立方向**，再恢復自動判斷。兩個功能沒有各自創建新的耳機採集實例。
+活動期間暫停隱私保護的自動姿態觸發，手動遮擋仍可用並會暫停活動。完成、提前結束或關閉活動窗口後，恢復原來的自動隱私檢測設置，但清除活動參考：**回到工作姿態後重新校準屏幕中立方向**，再恢復自動判斷。兩個功能沒有各自創建新的耳機採集實例。
 
 只在舒適範圍內緩慢活動，疼痛、眩暈或不適時停止。該功能是輕緩活動引導，不用於醫療診斷、治療或康復。模擬模式在窗口中明確標註，模擬完成結果不代表真實動作。
 
@@ -76,6 +74,8 @@
 5. **暫停顯示**應凍結數值和曲線，但計數、頻率、收幀時間繼續變化；**停止**應停止採集、禁止校準、隱藏實時頻率，並保留標明“非實時”的最後一幀。
 6. 測試取下耳機、放回充電盒、斷開再連接、睡眠喚醒。恢復數據後參考姿態會清除，需要重新校準。界面不會把先前的樣本繼續標成實時。
 7. 分別記錄 AirPods Pro 2 / Pro 3 的實際結果。型號名稱不替代運行時可用性檢測；公共運動 API 不提供選擇左/右耳或特定耳機型號的接口。
+
+若顯示「運動權限已允許」但收幀計數仍為零，表示目前尚未收到運動資料；音樂正常播放也不代表運動資料通道已就緒。先停止並重新開始採集，持續無資料時再退出應用並開啟目前構建版本。更新後仍在執行的舊程式不會自動換成新版本；更換應用識別或簽名時，請以重新開啟後的權限狀態為準，只在系統提出要求時重新授權。測試時只保留一份應用，避免不同構建目錄的副本同時出現在選單列。
 
 連接/首次權限、重新連接、系統睡眠等行為受 macOS 和耳機固件影響。自動化測試覆蓋軟件狀態機，不能代替這些硬件步驟。[第一階段驗證記錄](docs/verification.md) 保留採集基線；兩個新增功能按 [功能驗收步驟](docs/features-acceptance.md) 分別在 Pro 2、Pro 3 上驗證。
 
@@ -109,24 +109,22 @@ HeadphoneMotionSource / SimulatedMotionSource
     → MotionSession actor → MotionProcessor
         → 每位訂閱者獨立的有界 AsyncStream<ProcessedMotion>
             → InteractionSession actor
-                → PrivacyMachine / DepartureMachine / NeckExerciseMachine
+                → PrivacyMachine / NeckExerciseMachine
                 → InteractionStore @MainActor（約 10 Hz）
                     → 多屏 AppKit 覆蓋窗口 / SwiftUI 活動與設置
         → SessionSnapshot → MotionStore @MainActor → SwiftUI（約 10 Hz）
-HeadphoneActivitySource（macOS 15+）
-    → 有界 AsyncStream<ActivitySourceEvent> → 同一個 InteractionSession
 ```
 
 - `Sources/MotionCore`：純 Swift 數據模型、四元數、校準、時間相關平滑和頻率估計。姿態用最短路徑 SLERP，向量用指數平滑；時間常數默認 80 ms，可關閉。濾波不會覆蓋原始數據。
 - `Sources/MotionRuntime`：平台適配、模擬源、狀態機與分發。Core Motion 的對象在主 actor 管理；回調在專用串行 `OperationQueue` 上立即複製成 `Sendable` 值，處理由獨立 actor 串行完成。只有回調橋接器用小範圍鎖。
-- `Sources/InteractionCore`：可獨立測試的隱私狀態機、離座證據規則、頸部活動狀態機和參數邊界，不持有 UI 或傳感器對象。
-- `InteractionSession`：按實際接收樣本運行姿態規則，另接收低頻活動類型變更並計算離座保持時間；協調頸部活動期間暫停自動隱私檢測、校準標識和斷流處理。沿用唯一的 `MotionSession`；原調試窗口的顯示暫停不影響功能判斷。
+- `Sources/InteractionCore`：可獨立測試的隱私狀態機、頸部活動狀態機和參數邊界，不持有 UI 或傳感器對象。
+- `InteractionSession`：按實際接收樣本運行姿態規則；協調頸部活動期間暫停自動隱私檢測、校準標識和斷流處理。沿用唯一的 `MotionSession`；原調試窗口的顯示暫停不影響功能判斷。
 - `AirPodsMotionLab/Privacy`：擁有 AppKit 覆蓋窗口、顯示器/Space 觀察器及解除操作；不決定動作是否完成。
 - `AirPodsMotionLab/Exercise` 與 `Settings`：原生 SceneKit 3D 頭部示範、幅度與保持進度、舒適範圍和參數設置。模型在本機程序化構建，無外部模型資產；視覺動畫不參與動作判定。
 - `AirPodsMotionLab/App`、`Support` 與 `Stores/SystemIntegrationStore`：`AppDelegate` 持有應用模型並在啟動完成時激活，不依賴任何窗口出現；`DockPresence` 按應用窗口的開關切換 `.regular` / `.accessory`；`GlobalHotKey` 封裝 Carbon 全局快捷鍵；登入項目狀態來自 `SMAppService.mainApp`。
 - `AirPodsMotionLab/Stores` 與 `Views`：約 10 Hz 取快照；圖表最多 330 點，表示顯示採樣而非完整傳感器歷史。暫停只影響顯示，錯誤與連接狀態仍可見。
 
-無效數值、異常四元數、重複/倒退時間戳會被拒絕並計數。超過 1 秒的採樣間隔清除參考、平滑和頻率窗口；超過 2 秒沒有有效到達幀會顯示中斷；仍有採集意圖時最多每 3 秒重新嘗試一次。首次授權尚未決定時保留原始請求，避免循環重啓打斷權限流程；拒絕/受限制權限會停止嘗試。手動停止、退出或數據源切換會釋放採集；世代編號和串行生命週期操作阻止遲到回調恢復舊會話。
+無效數值、異常四元數、重複/倒退時間戳會被拒絕並計數。超過 1 秒的採樣或接收間隔會清除平滑與頻率歷史；只有同一資料流在 3 秒內恢復、兩個時鐘的間隔差不超過 0.25 秒時才保留原參考。超時、斷連、睡眠或時間戳異常會清除參考；預設超過 3 秒沒有有效到達幀會顯示中斷，仍有採集意圖時最多每 4 秒重新嘗試一次。首次授權尚未決定時保留原始請求，避免循環重啓打斷權限流程；拒絕/受限制權限會停止嘗試。手動停止、退出或數據源切換會釋放採集；世代編號和串行生命週期操作阻止遲到回調恢復舊會話。
 
 消費者不會阻塞採集。輸入或訂閱緩衝滿時丟最舊的數據，界面顯示累計丟棄數；頻率只代表實際接收並接受的數據，不推算缺失樣本。重連可能改變參考坐標，舊校準不會跨連接沿用。
 
@@ -136,19 +134,18 @@ HeadphoneActivitySource（macOS 15+）
 
 `./script/test.sh` 使用 Swift Testing，覆蓋四元數、任意參考校準、跨 ±180°、`q/-q`、奇點、時間相關平滑、不規則頻率、異常數據，以及注入假源後的權限、斷連、重試、背壓和資源釋放。也可直接運行 `swift test`；受限制的代理沙箱若無法再次啓動 SwiftPM manifest 沙箱，可用 `swift test --disable-sandbox`。Xcode 應用 scheme 用於運行；包測試入口是上述腳本或單獨打開 `Package.swift`。
 
-新增測試還覆蓋遲滯與保持時間、手動解除後的重新就緒、斷流保持遮擋、已就緒時資料中斷的自動遮擋與 1 秒寬限、未就緒通知的延遲與頻率限制、校準變化、真實姿態條件下的目標與返回判定、暫停/跳過，以及單條 Mock 數據源下的兩功能協調。最終批次結果以 `build/tests.log` 和 [功能驗收記錄](docs/features-acceptance.md) 為準，不把規則測試等同於多顯示器或耳機實測。
+新增測試還覆蓋遲滯與保持時間、手動解除後的重新就緒、斷流保持遮擋、已就緒時資料中斷的自動遮擋與 3 秒恢復期、未就緒通知的延遲與頻率限制、校準變化、真實姿態條件下的目標與返回判定、暫停/跳過，以及單條 Mock 數據源下的兩功能協調。最終批次結果以 `build/tests.log` 和 [功能驗收記錄](docs/features-acceptance.md) 為準，不把規則測試等同於多顯示器或耳機實測。
 
 模擬源產生三軸平滑合成姿態，以不等間隔送入相同流水線；角速度與重力由同一合成姿態計算，無平移用戶加速度。它驗證處理和 UI，不擬合 AirPods 噪聲、漂移或固件行為。
 
 新增功能從這些接口進入：
 
 - 識別算法：獨立模塊訂閱 `await session.samples()`；使用原始時間戳、四元數與向量，不消費 UI 的 10 Hz 快照。遇到時間斷點、掉樣或校準狀態變化時重置算法內部狀態。
-- 新數據源：姿態實現 `MotionSource`，用 `MotionSession(source:)` 注入；活動實現 `ActivitySource`，注入 `InteractionSession`，便於回放與測試。
+- 新數據源：姿態實現 `MotionSource`，用 `MotionSession(source:)` 注入，便於回放與測試。
 - 現有交互：先在 `InteractionCore` 修改規則並測試，再由 `InteractionSession` 協調，最後更新 UI；不要從視圖另開傳感器，也不要把 UI 動畫進度當作完成依據。當前只包含隱私遮擋和頸部活動。
 
 ## 官方依據
 
-- [CMHeadphoneActivityManager：活動識別](https://developer.apple.com/documentation/coremotion/cmheadphoneactivitymanager)、[耳機活動資料範例](https://developer.apple.com/documentation/coremotion/getting-motion-activity-data-from-headphones)
 - [CMHeadphoneMotionManager：平台、權限、耳機坐標圖](https://developer.apple.com/documentation/coremotion/cmheadphonemotionmanager)
 - [CMDeviceMotion](https://developer.apple.com/documentation/coremotion/cmdevicemotion)、[rotationRate](https://developer.apple.com/documentation/coremotion/cmdevicemotion/rotationrate)、[gravity](https://developer.apple.com/documentation/coremotion/cmdevicemotion/gravity)
 - [CMLogItem.timestamp](https://developer.apple.com/documentation/coremotion/cmlogitem/timestamp)

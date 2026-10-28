@@ -98,7 +98,7 @@ private func sameRotation(_ a: Quaternion, _ b: Quaternion) -> Bool {
     #expect(try #require(clearedSample).headRelativeAngles == nil)
     let recalibrated = processor.calibrate()
     #expect(recalibrated)
-    // The existing one-second sensor-gap reset also invalidates feature axes.
-    let interruptedSample = processor.process(headSample(2, .identity))
+    // Crossing the recovery deadline invalidates feature axes as well.
+    let interruptedSample = processor.process(headSample(3.3, .identity))
     #expect(try #require(interruptedSample).headRelativeQuaternion == nil)
 }

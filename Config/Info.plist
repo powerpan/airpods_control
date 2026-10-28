@@ -14,6 +14,6 @@
     <key>LSMinimumSystemVersion</key><string>$(MACOSX_DEPLOYMENT_TARGET)</string>
     <key>NSPrincipalClass</key><string>NSApplication</string>
     <key>NSHighResolutionCapable</key><true/>
-    <key>NSMotionUsageDescription</key><string>讀取已連接 AirPods 的頭部運動與活動分類，用於本機姿態調試、自動隱私遮擋、離座偵測和頸部活動引導。資料僅在記憶體中處理。</string>
+    <key>NSMotionUsageDescription</key><string>讀取已連接 AirPods 的頭部運動，用於本機姿態調試、自動隱私遮擋和頸部活動引導。資料僅在記憶體中處理。</string>
 </dict>
 </plist>

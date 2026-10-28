@@ -29,23 +29,14 @@ struct FeatureSettingsView: View {
                 Button("將目前正視方向設為中立", action: store.calibrateNeutral)
                     .disabled(!store.snapshot.sensorReady || store.snapshot.privacy.isShielded || store.snapshot.automaticSuspended)
             } header: {
-                Text("坐在書桌前、面向屏幕時校準")
+                Text("面向屏幕時校準")
             } footer: {
-                Text("校準同時確認書桌基準。頸部活動期間暫停轉頭與離座判定，結束後需要重新校準。")
-            }
-
-            Section("離座偵測") {
-                Toggle("持續行走後保持遮擋", isOn: privacyBinding(\.departureDetectionEnabled))
-                Text(store.snapshot.departureStatus)
-                    .font(.caption).foregroundStyle(.secondary)
-                    .accessibilityIdentifier("privacy-departure-status")
-                Text("可靠步行或跑步證據持續約 2.5 秒後，遮擋會保持到手動解除；回正或靜止不會解除。需要 macOS 15 及相容耳機，無法使用時保留原有轉頭遮擋。")
-                    .font(.caption).foregroundStyle(.secondary)
+                Text("校準觀看屏幕的中立方向。頸部活動期間暫停轉頭判定，結束後需要重新校準。")
             }
 
             Section("耳機資料中斷") {
-                Toggle("已就緒時遺失耳機資料即遮擋", isOn: privacyBinding(\.shieldOnDataLossEnabled))
-                Text("自動保護已就緒時，若耳機斷開、放回充電盒、離開藍牙範圍或資料流中斷，會遮擋並保持到手動解除；資料流短暫停頓先等待約 1 秒恢復。手動停止採集、結束應用及頸部活動期間不會觸發。關閉後資料中斷只會停止偵測。")
+                Toggle("啟用資料中斷保護", isOn: privacyBinding(\.shieldOnDataLossEnabled))
+                Text("資料短暫停滯時，從最後一筆有效資料起等待 3 秒；同一連線及有效參考下及時恢復，就保留校準並繼續偵測。明確斷連、裝置切換造成的斷連、睡眠或超時會保持遮擋，需手動解除後重新校準。手動停止採集、結束應用及頸部活動期間不新增遮擋。關閉後資料中斷只會停止偵測。")
                     .font(.caption).foregroundStyle(.secondary)
                 Text("保護由已就緒變為未就緒並持續數秒時，會發出系統通知提醒重新校準。")
                     .font(.caption).foregroundStyle(.secondary)

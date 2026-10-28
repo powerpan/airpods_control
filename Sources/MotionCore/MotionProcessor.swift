@@ -36,8 +36,25 @@ public struct MotionProcessor: Sendable {
         if let previous = lastSample, sample.timestamp <= previous.timestamp {
             return reject("Duplicate or backward sensor timestamp")
         }
-        if let previous = lastSample, sample.timestamp - previous.timestamp > 1 {
-            resetContinuity()
+        if let previous = lastSample {
+            let sensorGap = sample.timestamp - previous.timestamp
+            let receiptGap = sample.receivedUptime - previous.receivedUptime
+            if sensorGap > MotionContinuityPolicy.filterResetInterval
+                || receiptGap > MotionContinuityPolicy.filterResetInterval {
+                let recoverable = max(sensorGap, receiptGap) < MotionContinuityPolicy.recoveryInterval
+                    && receiptGap > 0
+                    && abs(sensorGap - receiptGap) <= MotionContinuityPolicy.clockTolerance
+                if recoverable {
+                    // The same stream resumed. Discard interpolation/rate history,
+                    // but retain the explicit reference; never calibrate at recovery.
+                    discontinuityCount += 1
+                    lastSample = nil
+                    timestamps.removeAll(keepingCapacity: true)
+                    clearFilters()
+                } else {
+                    resetContinuity()
+                }
+            }
         }
 
         let dt = lastSample.map { sample.timestamp - $0.timestamp }

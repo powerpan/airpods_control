@@ -160,88 +160,6 @@ private func shielded() -> PrivacyMachine {
     #expect(settings.returnDelay == 0.5)
 }
 
-@Test func departureCanShieldAtDeskOrUpgradeTemporaryShieldAndNeverAutoReveal() {
-    for initial in [armed(), shielded()] {
-        var machine = initial
-        machine.confirmDeparture()
-        #expect(machine.isShielded)
-        #expect(machine.isDepartureLatched)
-        #expect(machine.requiresManualReveal)
-        #expect(machine.phase == .departureHeld)
-        feed(&machine, from: 2, through: 5)
-        #expect(machine.isShielded)
-        #expect(machine.phase == .departureHeld)
-    }
-}
-
-@Test func departureLatchSurvivesEveryNonRevealControlAndInvalidation() {
-    var machine = armed()
-    machine.confirmDeparture()
-    let reason = machine.status
-    machine.invalidatePose(reason: "資料中斷")
-    machine.resetReference()
-    machine.process(pose(2, reference: UUID()))
-    machine.process(pose(.nan))
-    machine.setAutomaticEnabled(false)
-    machine.setSuspended(true)
-    machine.updateSettings(PrivacySettings(departureDetectionEnabled: false))
-    machine.manualShield()
-    #expect(machine.isShielded)
-    #expect(machine.isDepartureLatched)
-    #expect(machine.requiresManualReveal)
-    #expect(machine.phase == .departureHeld)
-    #expect(machine.status == reason)
-    machine.manualReveal()
-    #expect(!machine.isShielded)
-    #expect(!machine.isDepartureLatched)
-}
-
-@Test func manuallyRevealedDepartureWaitsForNeutralBeforeOrdinaryTurnDetection() {
-    var machine = armed()
-    machine.confirmDeparture()
-    machine.manualReveal()
-    feed(&machine, from: 2, through: 3, yaw: 40)
-    #expect(!machine.isShielded)
-    #expect(machine.phase == .waitingForNeutral)
-    machine.process(pose(3.1, yaw: 25))
-    feed(&machine, from: 3.2, through: 3.8, yaw: 10)
-    #expect(machine.phase == .watching)
-    machine.process(pose(3.9, yaw: 25))
-    feed(&machine, from: 4, through: 4.6, yaw: 40)
-    #expect(machine.isShielded)
-    #expect(!machine.isDepartureLatched)
-    machine.process(pose(4.7, yaw: 25))
-    feed(&machine, from: 4.8, through: 5.4, yaw: 10)
-    #expect(!machine.isShielded)
-}
-
-@Test func disabledOrExerciseSuspendedDetectionCannotLatchDeparture() {
-    var disabled = PrivacyMachine()
-    disabled.confirmDeparture()
-    #expect(!disabled.isShielded)
-    var exercise = armed()
-    exercise.setSuspended(true)
-    exercise.confirmDeparture()
-    #expect(!exercise.isShielded)
-    var optedOut = armed()
-    optedOut.updateSettings(PrivacySettings(departureDetectionEnabled: false))
-    optedOut.confirmDeparture()
-    #expect(!optedOut.isShielded)
-}
-
-@Test func oldPrivacyPreferencesKeepExistingValuesAndDefaultDepartureEnabled() throws {
-    let old = Data(#"{"triggerAngle":42,"returnAngle":18,"triggerDelay":0.8,"returnDelay":0.7}"#.utf8)
-    let decoded = try JSONDecoder().decode(PrivacySettings.self, from: old)
-    #expect(decoded.triggerAngle == 42)
-    #expect(decoded.returnAngle == 18)
-    #expect(decoded.triggerDelay == 0.8)
-    #expect(decoded.returnDelay == 0.7)
-    #expect(decoded.departureDetectionEnabled)
-    let off = PrivacySettings(departureDetectionEnabled: false)
-    #expect(try JSONDecoder().decode(PrivacySettings.self, from: JSONEncoder().encode(off)) == off)
-    #expect(!off.sanitized().departureDetectionEnabled)
-}
-
 @Test func armedOnlyWhileTurningAwayWouldStartTheShieldCountdown() {
     var machine = PrivacyMachine()
     #expect(!machine.isArmed)
@@ -345,9 +263,9 @@ private func shielded() -> PrivacyMachine {
     #expect(stalled.dataLossSince == 100)
     // A later, different invalidation (reference lost) keeps the original start.
     stalled.poseDataLost(reason: "參考姿態已失效", at: 100.4)
-    stalled.checkDataLoss(at: 100.9)
+    stalled.checkDataLoss(at: 100 + PrivacyMachine.dataLossGrace - 0.1)
     #expect(!stalled.isShielded)
-    stalled.checkDataLoss(at: 101)
+    stalled.checkDataLoss(at: 100 + PrivacyMachine.dataLossGrace)
     #expect(stalled.isShielded)
     #expect(stalled.requiresManualReveal)
     #expect(stalled.status.hasPrefix("資料中斷"))
@@ -425,9 +343,26 @@ private func shielded() -> PrivacyMachine {
     let old = Data(#"{"triggerAngle":42,"returnAngle":18,"triggerDelay":0.8,"returnDelay":0.7,"departureDetectionEnabled":false}"#.utf8)
     let decoded = try JSONDecoder().decode(PrivacySettings.self, from: old)
     #expect(decoded.triggerAngle == 42)
-    #expect(!decoded.departureDetectionEnabled)
+    #expect(decoded.returnAngle == 18)
+    #expect(decoded.triggerDelay == 0.8)
+    #expect(decoded.returnDelay == 0.7)
+    let encoded = String(decoding: try JSONEncoder().encode(decoded), as: UTF8.self)
+    #expect(!encoded.contains("departureDetectionEnabled"))
     #expect(decoded.shieldOnDataLossEnabled)
     let off = PrivacySettings(shieldOnDataLossEnabled: false)
     #expect(try JSONDecoder().decode(PrivacySettings.self, from: JSONEncoder().encode(off)) == off)
     #expect(!off.sanitized().shieldOnDataLossEnabled)
+}
+
+@Test func recoveryDeadlineStartsAtLastSampleAndLatePoseCannotCancelIt() {
+    var machine = armed()
+    machine.poseDataLost(at: 100.4, lastSampleUptime: 100)
+    #expect(machine.dataLossSince == 100)
+    machine.checkDataLoss(at: 102.99)
+    #expect(!machine.isShielded)
+    var resumed = pose(3.7)
+    resumed.receivedUptime = 103
+    machine.process(resumed)
+    #expect(machine.isShielded)
+    #expect(machine.requiresManualReveal)
 }

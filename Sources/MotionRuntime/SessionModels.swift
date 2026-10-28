@@ -17,6 +17,22 @@ public enum CapturePhase: String, Sendable {
     case idle, starting, waiting, streaming, interrupted, permissionDenied, failed, stopped
 }
 
+/// Retained in snapshots so a disconnect/reconnect between UI polls is not lost.
+public struct CaptureInterruption: Sendable, Equatable {
+    public enum Reason: Sendable, Equatable {
+        case disconnected, sleep, sourceFailure, streamEnded, timedOut
+    }
+    public let id: UUID
+    public let reason: Reason
+    public let uptime: TimeInterval
+
+    public init(reason: Reason, uptime: TimeInterval) {
+        self.id = UUID()
+        self.reason = reason
+        self.uptime = uptime
+    }
+}
+
 public struct SourceAvailability: Sendable, Equatable {
     public var isAvailable: Bool
     public var authorization: MotionAuthorization
@@ -47,6 +63,7 @@ public struct SessionSnapshot: Sendable {
     public var smoothingEnabled = true
     public var calibrationMessage: String? = nil
     public var calibrationID: UUID? = nil
+    public var lastInterruption: CaptureInterruption?
 
     public init() {}
 }

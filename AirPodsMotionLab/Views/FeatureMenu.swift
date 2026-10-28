@@ -15,9 +15,6 @@ struct FeatureMenu: View {
         Divider()
         Toggle("自動隱私保護", isOn: Binding(get: { features.privacyEnabled }, set: features.setPrivacyEnabled))
         Text(features.snapshot.privacy.status)
-        if features.privacyEnabled, features.privacySettings.departureDetectionEnabled {
-            Text(features.snapshot.departureStatus)
-        }
         if features.snapshot.privacy.isShielded {
             Button("解除隱私遮擋", action: features.hideShield)
         } else {
@@ -35,7 +32,7 @@ struct FeatureMenu: View {
             NSApp.activate(ignoringOtherApps: true)
         }
         .disabled(features.snapshot.privacy.isShielded)
-        if features.snapshot.automaticSuspended { Text("活動期間，轉頭與離座判定已暫停") }
+        if features.snapshot.automaticSuspended { Text("活動期間，轉頭判定已暫停") }
         Divider()
         Button("運動數據調試") {
             openWindow(id: "motion-lab")

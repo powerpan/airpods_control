@@ -4,9 +4,9 @@ import Testing
 
 private func sample(_ timestamp: Double, quaternion: Quaternion = .identity,
                     attitude: AttitudeAngles = .zero,
-                    rate: Vector3 = .zero, acceleration: Vector3 = .zero) -> MotionSample {
+                    rate: Vector3 = .zero, acceleration: Vector3 = .zero, receipt: Double? = nil) -> MotionSample {
     MotionSample(timestamp: timestamp, receivedAt: Date(timeIntervalSince1970: 1_000 + timestamp),
-                 receivedUptime: timestamp + 10, attitude: attitude, quaternion: quaternion,
+                 receivedUptime: receipt ?? timestamp + 10, attitude: attitude, quaternion: quaternion,
                  rotationRate: rate, userAcceleration: acceleration,
                  gravity: Vector3(x: 0, y: 0, z: -1))
 }
@@ -129,7 +129,7 @@ private func equivalent(_ a: Quaternion, _ b: Quaternion, tolerance: Double = 1e
     _ = processor.process(sample(10.5))
     #expect(processor.calibrate() == true)
     let orientation = Quaternion(angles: AttitudeAngles(yaw: 1, pitch: 0, roll: 0))
-    let resultValue = processor.process(sample(12, quaternion: orientation))
+    let resultValue = processor.process(sample(14, quaternion: orientation))
     let result = try #require(resultValue)
     #expect(!result.isCalibrated)
     #expect(result.measuredFrequency == nil)
@@ -146,6 +146,39 @@ private func equivalent(_ a: Quaternion, _ b: Quaternion, tolerance: Double = 1e
     #expect(processor.rejectedCount == 0)
     #expect(processor.discontinuityCount == 0)
     #expect(processor.calibrate() == false)
+}
+
+@Test(arguments: [1.1, 2.5, 2.9])
+func recoverableClockAlignedGapPreservesCalibrationAndResetsFiltering(gap: Double) throws {
+    var processor = MotionProcessor(smoothingTimeConstant: 1)
+    let reference = Quaternion(angles: AttitudeAngles(yaw: 0.4, pitch: 0, roll: 0))
+    _ = processor.process(sample(10, quaternion: reference))
+    #expect(processor.calibrate() == true)
+    let id = processor.calibrationID
+    let target = Quaternion(angles: AttitudeAngles(yaw: 0.6, pitch: 0, roll: 0))
+    let processed = processor.process(sample(10 + gap, quaternion: target))
+    let result = try #require(processed)
+    #expect(result.calibrationID == id)
+    #expect(result.isCalibrated)
+    #expect(abs(try #require(result.relativeAngles).yaw - 0.2) < 1e-8)
+    #expect(equivalent(result.displayQuaternion, try #require(result.relativeQuaternion)))
+    #expect(result.measuredFrequency == nil)
+}
+
+@Test func timestampJumpWithoutMatchingReceiptGapStillInvalidatesCalibration() throws {
+    var processor = MotionProcessor()
+    _ = processor.process(sample(10))
+    #expect(processor.calibrate() == true)
+    let result = processor.process(sample(11.2, receipt: 20.02))
+    #expect(try #require(result).isCalibrated == false)
+}
+
+@Test func gapAtRecoveryDeadlineRequiresManualCalibration() throws {
+    var processor = MotionProcessor()
+    _ = processor.process(sample(10))
+    #expect(processor.calibrate() == true)
+    let result = processor.process(sample(13))
+    #expect(try #require(result).isCalibrated == false)
 }
 
 @Test func recalibrationDoesNotRetainOldFilterPose() throws {

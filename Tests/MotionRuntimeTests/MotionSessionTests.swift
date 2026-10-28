@@ -69,6 +69,49 @@ private let patientTiming = SessionTiming(interruptionTimeout: 10, retryInterval
 private let recoveryTiming = SessionTiming(interruptionTimeout: 0.05, retryInterval: 0.12, watchdogInterval: 0.01)
 
 @Test @MainActor
+func authorizedConnectionWithoutSamplesDoesNotAskForPermissionAgain() async {
+    let source = FakeMotionSource()
+    let session = MotionSession(source: source, timing: SessionTiming(
+        interruptionTimeout: 0.05, retryInterval: 10, watchdogInterval: 0.01
+    ))
+    await session.start()
+    source.send(.connection(.connected))
+    #expect(await eventually { await session.snapshot().phase == .starting })
+    let connected = await session.snapshot()
+    #expect(connected.availability.authorization == .authorized)
+    #expect(connected.message?.contains("權限已允許") == true)
+    #expect(connected.message?.contains("等待運動權限") == false)
+
+    #expect(await eventually { await session.snapshot().phase == .waiting })
+    let waiting = await session.snapshot()
+    #expect(waiting.acceptedCount == 0)
+    #expect(waiting.message?.contains("權限已允許") == true)
+    #expect(waiting.message?.contains("尚未收到") == true)
+    await session.shutdown()
+}
+
+@Test @MainActor
+func grantingPermissionUpdatesTheWaitingMessageBeforeTheFirstSample() async {
+    let source = FakeMotionSource()
+    source.availability.authorization = .notDetermined
+    let session = MotionSession(source: source, timing: SessionTiming(
+        interruptionTimeout: 0.05, retryInterval: 10, watchdogInterval: 0.01
+    ))
+    await session.start()
+    source.send(.connection(.connected))
+    #expect(await eventually { await session.snapshot().message?.contains("尚未授予") == true })
+    source.availability.authorization = .authorized
+    #expect(await eventually {
+        let snapshot = await session.snapshot()
+        return snapshot.availability.authorization == .authorized
+            && snapshot.message?.contains("權限已允許") == true
+    })
+    #expect(await session.snapshot().acceptedCount == 0)
+    #expect(source.startCount == 1)
+    await session.shutdown()
+}
+
+@Test @MainActor
 func repeatedStartIsIdempotentAndLateCallbacksCannotRestartStoppedCapture() async {
     let source = FakeMotionSource()
     let session = MotionSession(source: source, timing: patientTiming)
@@ -418,7 +461,7 @@ func initialPermissionWaitDoesNotRestartTheStreamAndAuthorizationResumesRecovery
 
 
 @Test @MainActor
-func automaticCalibrationCannotUseANewerUnverifiedOrStaleSample() async {
+func manualCalibrationRequiresFreshSamples() async {
     let source = FakeMotionSource()
     let session = MotionSession(source: source, timing: patientTiming)
     await session.start()
@@ -426,12 +469,10 @@ func automaticCalibrationCannotUseANewerUnverifiedOrStaleSample() async {
     #expect(await eventually { await session.snapshot().latest?.raw.timestamp == 10 })
     source.send(.sample(sample(10.02, yaw: 0.4)))
     #expect(await eventually { await session.snapshot().latest?.raw.timestamp == 10.02 })
-    #expect(await session.calibrate(expectedTimestamp: 10) == false)
-    #expect(await session.currentCalibrationID() == nil)
-    #expect(await session.calibrate(expectedTimestamp: 10.02))
+    #expect(await session.calibrate())
     let reference = await session.currentCalibrationID()
     try? await Task.sleep(for: .milliseconds(350))
-    #expect(await session.calibrate(expectedTimestamp: 10.02) == false)
+    #expect(await session.calibrate() == false)
     #expect(await session.currentCalibrationID() == reference)
     await session.shutdown()
 }
