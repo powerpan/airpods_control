@@ -4,6 +4,7 @@ import InteractionCore
 @MainActor
 struct FeatureSettingsView: View {
     let store: InteractionStore
+    let system: SystemIntegrationStore
 
     var body: some View {
         TabView {
@@ -74,8 +75,34 @@ struct FeatureSettingsView: View {
                 Text("這是視覺遮擋，不是系統鎖屏。耳機斷連時保留已有遮擋；遮擋界面的解除按鈕始終可用。系統安全窗口及某些 Spaces 場景可能不被覆蓋。")
                     .font(.caption).foregroundStyle(.secondary)
             }
+
+            Section {
+                Toggle("開機時啟動", isOn: Binding(
+                    get: { system.launchAtLogin },
+                    set: { system.setLaunchAtLogin($0) }
+                ))
+                Text(system.loginItemStatusText)
+                    .font(.caption).foregroundStyle(.secondary)
+                if system.loginItemStatus == .requiresApproval {
+                    Button("打開登入項目設定", action: system.openLoginItemsSettings)
+                }
+                if let error = system.loginItemError {
+                    Text(error).font(.caption).foregroundStyle(.red)
+                }
+                Toggle("全局快捷鍵 \(system.shieldHotKeyTitle) 立即遮擋所有屏幕", isOn: Binding(
+                    get: { system.shieldHotKeyEnabled },
+                    set: { system.setShieldHotKeyEnabled($0) }
+                ))
+                Text(system.shieldHotKeyStatusText)
+                    .font(.caption).foregroundStyle(system.shieldHotKeyError == nil ? .secondary : Color.red)
+            } header: {
+                Text("背景運行")
+            } footer: {
+                Text("應用常駐菜單欄，沒有打開窗口時不顯示 Dock 圖標。快捷鍵只會遮擋，不會解除遮擋。")
+            }
         }
         .formStyle(.grouped)
+        .onAppear(perform: system.refreshLoginItem)
     }
 
     private var exerciseSettings: some View {

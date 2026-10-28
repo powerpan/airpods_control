@@ -18,10 +18,14 @@ struct FeatureMenu: View {
         if features.privacyEnabled, features.privacySettings.departureDetectionEnabled {
             Text(features.snapshot.departureStatus)
         }
-        Button(features.snapshot.privacy.isShielded ? "解除隱私遮擋" : "立即遮擋所有屏幕") {
-            if features.snapshot.privacy.isShielded { features.hideShield() } else { features.showShield() }
+        if features.snapshot.privacy.isShielded {
+            Button("解除隱私遮擋", action: features.hideShield)
+        } else {
+            // Also registered system-wide (GlobalHotKey), which takes the chord
+            // before this menu does; it only ever shields, never reveals.
+            Button("立即遮擋所有屏幕", action: features.showShield)
+                .keyboardShortcut("p", modifiers: [.command, .control])
         }
-        .keyboardShortcut("p", modifiers: [.command, .control])
         Button("校準屏幕中立方向", action: features.calibrateNeutral)
             .disabled(!features.snapshot.sensorReady || features.snapshot.privacy.isShielded || features.snapshot.exercise.isActive)
         Divider()

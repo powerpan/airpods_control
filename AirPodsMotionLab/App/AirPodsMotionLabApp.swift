@@ -5,15 +5,23 @@ import SwiftUI
 @MainActor
 struct AirPodsMotionLabApp: App {
     @NSApplicationDelegateAdaptor(AppDelegate.self) private var delegate
-    @State private var model = ApplicationModel()
+    private var model: ApplicationModel { delegate.model }
 
+    // The menu-bar extra is declared first: SwiftUI opens the first window
+    // scene at launch, and this utility should start with no window at all.
+    // Every window below opens only from the menu.
     var body: some Scene {
-        Window("AirPods Motion Lab", id: "motion-lab") {
+        MenuBarExtra {
+            FeatureMenu(motion: model.motion, features: model.features)
+        } label: {
+            Label("AirPods Motion Lab · \(model.features.privacyIndicator.title)",
+                  systemImage: model.features.privacyIndicator.symbol)
+        }
+        .menuBarExtraStyle(.menu)
+
+        Window("運動數據調試", id: "motion-lab") {
             ContentView(store: model.motion, features: model.features)
-                .task {
-                    delegate.model = model
-                    await model.activate()
-                }
+                .appWindow()
         }
         .defaultSize(width: 1040, height: 900)
         .windowResizability(.contentMinSize)
@@ -34,19 +42,9 @@ struct AirPodsMotionLabApp: App {
             }
         }
 
-        MenuBarExtra {
-            FeatureMenu(motion: model.motion, features: model.features)
-                .task { await activateModel() }
-        } label: {
-            Label("AirPods Motion Lab · \(model.features.privacyIndicator.title)",
-                  systemImage: model.features.privacyIndicator.symbol)
-                .task { await activateModel() }
-        }
-        .menuBarExtraStyle(.menu)
-
-        Window("Neck Exercise", id: "neck-exercise") {
+        Window("頸部活動", id: "neck-exercise") {
             ExerciseView(store: model.features)
-                .task { await activateModel() }
+                .appWindow()
                 .background(WindowCloseObserver { model.features.endExercise() })
                 .onDisappear { model.features.endExercise() }
         }
@@ -54,27 +52,28 @@ struct AirPodsMotionLabApp: App {
         .windowResizability(.contentMinSize)
 
         Settings {
-            FeatureSettingsView(store: model.features)
-                .task { await activateModel() }
+            FeatureSettingsView(store: model.features, system: model.system)
+                .appWindow()
         }
-    }
-
-    private func activateModel() async {
-        delegate.model = model
-        await model.activate()
     }
 }
 
 @MainActor
 final class AppDelegate: NSObject, NSApplicationDelegate {
-    weak var model: ApplicationModel?
+    // Owned here rather than by a view so sensing, the privacy shield and the
+    // global shortcut start at launch even though no window opens.
+    let model = ApplicationModel()
     private var terminationRequested = false
+
+    func applicationDidFinishLaunching(_ notification: Notification) {
+        Task { await model.activate() }
+    }
 
     // Closing a utility/debug window leaves the explicit menu-bar controls alive.
     func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool { false }
 
     func applicationShouldTerminate(_ sender: NSApplication) -> NSApplication.TerminateReply {
-        guard !terminationRequested, let model else { return .terminateNow }
+        guard !terminationRequested else { return .terminateNow }
         terminationRequested = true
         Task {
             await model.shutdown()
